@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { Camera, Plus, AlertCircle, CheckCircle2, Boxes } from "lucide-react";
 import { useToast } from "@/app/components/ToastContext";
 import Modal from "@/app/components/Modal";
-import { Tariff, Product, UnitsData, WarehousesData, ProductCategoriesData, ProductClassesData } from "../types";
+import { Tariff, Product, UnitsData, WarehousesData, ProductCategoriesData, ProductClassesData, ProductStoresData, CreateProductData, UpdateProductData, SetStockData, ProductStoreEntry } from "../types";
 import { getProductImageUrl } from "../utils";
 import { 
   CREATE_PRODUCT_MUTATION, 
@@ -62,7 +62,7 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
   const { data: warehousesData } = useQuery<WarehousesData>(WAREHOUSES_QUERY);
   const { data: categoriesData } = useQuery<ProductCategoriesData>(PRODUCT_CATEGORIES_QUERY);
   const { data: classesData } = useQuery<ProductClassesData>(PRODUCT_CLASSES_QUERY);
-  const { data: productStoresData } = useQuery(PRODUCT_STORES_QUERY, {
+  const { data: productStoresData } = useQuery<ProductStoresData>(PRODUCT_STORES_QUERY, {
     variables: { productId: productData ? parseInt(productData.id) : null },
     skip: !productData || !isOpen
   });
@@ -112,7 +112,7 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
     if (isEdit && formData.id && stores && formData.productStores.length === 0) {
       setFormData(prev => ({
         ...prev,
-        productStores: stores.map((ps: any) => ({
+        productStores: stores.map((ps: ProductStoreEntry) => ({
           warehouseId: (ps.warehouse_id ?? ps.warehouseId)?.toString() ?? "",
           stock: String(ps.stock ?? 0)
         }))
@@ -121,9 +121,9 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
   }, [productStoresData, isEdit, formData.id]);
 
   // Mutations
-  const [createProduct, { loading: creating }] = useMutation(CREATE_PRODUCT_MUTATION);
-  const [updateProduct, { loading: updating }] = useMutation(UPDATE_PRODUCT_MUTATION);
-  const [setStock] = useMutation(SET_STOCK_MUTATION);
+  const [createProduct, { loading: creating }] = useMutation<CreateProductData>(CREATE_PRODUCT_MUTATION);
+  const [updateProduct, { loading: updating }] = useMutation<UpdateProductData>(UPDATE_PRODUCT_MUTATION);
+  const [setStock] = useMutation<SetStockData>(SET_STOCK_MUTATION);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -233,14 +233,16 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
     try {
       if (isEdit) {
         const res = await updateProduct({ variables: { ...variables, id: parseInt(formData.id) } });
-        if (!res.data?.updateProduct?.success) throw new Error(res.data?.updateProduct?.message);
-        showSuccess(res.data.updateProduct.message);
+        const updateRes = res.data?.updateProduct ?? res.data?.update_product;
+        if (!updateRes?.success) throw new Error(updateRes?.message || "Error al actualizar");
+        showSuccess(updateRes.message || "Producto actualizado con éxito");
         productId = parseInt(formData.id);
       } else {
         const res = await createProduct({ variables });
-        if (!res.data?.createProduct?.success) throw new Error(res.data?.createProduct?.message);
-        showSuccess(res.data.createProduct.message);
-        productId = res.data.createProduct.id;
+        const createRes = res.data?.createProduct ?? res.data?.create_product;
+        if (!createRes?.success) throw new Error(createRes?.message || "Error al crear");
+        showSuccess(createRes.message || "Producto creado con éxito");
+        productId = createRes.id;
       }
     } catch (e: any) {
       danger(e.message || "Ocurrió un error al guardar el producto.");

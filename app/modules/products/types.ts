@@ -66,11 +66,17 @@ export interface ProductStoreEntry {
   id: string;
   productId: number;
   warehouseId: number;
+  warehouse_id?: number;
   stock: number;
 }
 
 export interface CreateProductData {
-  createProduct: {
+  createProduct?: {
+    success: boolean;
+    message: string;
+    id?: number;
+  };
+  create_product?: {
     success: boolean;
     message: string;
     id?: number;
@@ -78,7 +84,11 @@ export interface CreateProductData {
 }
 
 export interface UpdateProductData {
-  updateProduct: {
+  updateProduct?: {
+    success: boolean;
+    message: string;
+  };
+  update_product?: {
     success: boolean;
     message: string;
   };
@@ -100,7 +110,11 @@ export interface UpdateWarehouseData {
 }
 
 export interface SetStockData {
-  setStock: {
+  setStock?: {
+    success: boolean;
+    message: string;
+  };
+  set_stock?: {
     success: boolean;
     message: string;
   };
@@ -123,7 +137,8 @@ export interface SubsidiariesData {
 }
 
 export interface ProductStoresData {
-  product_stores: ProductStoreEntry[];
+  productStores?: ProductStoreEntry[];
+  product_stores?: ProductStoreEntry[];
 }
 
 export interface ProductCategoriesData {
