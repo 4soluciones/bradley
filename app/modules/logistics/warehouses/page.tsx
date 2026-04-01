@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useToast } from "@/app/components/ToastContext";
-import { Edit, Plus, Warehouse, Search, MapPin, Tag } from "lucide-react";
+import { Edit, Plus, Warehouse as WarehouseIcon, Search, MapPin, Tag } from "lucide-react";
 import { 
   WAREHOUSES_QUERY, 
   CREATE_WAREHOUSE_MUTATION, 
@@ -14,7 +14,8 @@ import type {
   WarehousesData, 
   CreateWarehouseData, 
   UpdateWarehouseData,
-  SubsidiariesData
+  SubsidiariesData,
+  Warehouse
 } from "../../products/types";
 
 export default function WarehousesPage() {
@@ -80,9 +81,9 @@ export default function WarehousesPage() {
     }
   };
 
-  const handleEdit = (wh: { id: number; name: string; category: string; subsidiaryId: number | null }) => {
+  const handleEdit = (wh: Warehouse) => {
     setFormData({ 
-      id: wh.id.toString(), 
+      id: wh.id, 
       name: wh.name, 
       category: wh.category,
       subsidiaryId: wh.subsidiaryId ? wh.subsidiaryId.toString() : ""
@@ -100,7 +101,7 @@ export default function WarehousesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
-            <Warehouse className="w-7 h-7 text-orange-600" />
+            <WarehouseIcon className="w-7 h-7 text-orange-600" />
             Gestión de <span className="text-orange-600">Almacenes</span>
           </h1>
           <p className="text-foreground/50 text-xs font-medium">Administra los almacenes de logística y ventas.</p>
@@ -228,7 +229,7 @@ export default function WarehousesPage() {
                       </span>
                     </div>
                     <div className="col-span-3 flex justify-center text-xs font-semibold text-foreground/60 w-full truncate">
-                      {wh.subsidiaryId ? (subsidiariesData?.subsidiaries.find(s => s.id === wh.subsidiaryId)?.name || 'Desconocida') : '-'}
+                      {wh.subsidiaryId !== null ? (subsidiariesData?.subsidiaries.find(s => s.id === String(wh.subsidiaryId))?.name || 'Desconocida') : '-'}
                     </div>
                     <div className="col-span-1 flex justify-center">
                       <button
