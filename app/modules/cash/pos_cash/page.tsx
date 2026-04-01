@@ -230,7 +230,7 @@ export default function PosCashPage() {
         refetchOps();
         searchInputRef.current?.focus();
       } else {
-        setPayError(data.payOperation.message);
+        setPayError(data?.payOperation.message || 'Error al procesar el pago');
       }
     } catch (e: any) {
       setPayError(e.message || 'Error al procesar el pago');
