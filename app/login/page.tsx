@@ -73,7 +73,7 @@ export default function LoginPage() {
     }
   };
 
-  console.log('LoginPage Root Rendered. Loading state:', loading);
+  console.log('LoginPage Component Rendered. Loading state:', loading);
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-zinc-950">
@@ -116,7 +116,7 @@ export default function LoginPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2 ml-1">Usuario</label>
+                <label className="block text-sm font-medium text-zinc-300 mb-2 ml-1">Nombre de Usuario</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                   <input 
