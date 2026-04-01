@@ -11,6 +11,7 @@ import {
 } from "../graphql";
 import type { 
   ProductCategoriesData, 
+  ProductCategory,
   CreateCategoryData, 
   UpdateCategoryData 
 } from "../types";
@@ -68,8 +69,8 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleEdit = (cat: { id: number; name: string; isEnabled: boolean }) => {
-    setFormData({ id: cat.id.toString(), name: cat.name, isEnabled: cat.isEnabled });
+  const handleEdit = (cat: ProductCategory) => {
+    setFormData({ id: cat.id, name: cat.name, isEnabled: cat.isEnabled });
     setIsEdit(true);
   };
 

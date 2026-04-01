@@ -11,6 +11,7 @@ import {
 } from "../graphql";
 import type { 
   ProductClassesData, 
+  ProductClass,
   CreateClassData, 
   UpdateClassData 
 } from "../types";
@@ -68,8 +69,8 @@ export default function ClassesPage() {
     }
   };
 
-  const handleEdit = (cls: { id: number; name: string; isEnabled: boolean }) => {
-    setFormData({ id: cls.id.toString(), name: cls.name, isEnabled: cls.isEnabled });
+  const handleEdit = (cls: ProductClass) => {
+    setFormData({ id: cls.id, name: cls.name, isEnabled: cls.isEnabled });
     setIsEdit(true);
   };
 
