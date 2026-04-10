@@ -13,6 +13,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const isLoginPage = pathname === '/' || pathname === '/login';
   const isPureDisplayPage = pathname.startsWith('/modules/sales/display');
+  const isSalesPage = pathname === '/modules/sales/new_sale';
 
   if (isLoginPage || isPureDisplayPage) {
     return (
@@ -50,13 +51,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
               {/* Main scrollable area */}
               <main className="flex-1 overflow-y-auto pt-16 sm:pl-64 flex flex-col">
-                <div className="p-4 sm:p-6 lg:p-8 flex-1">
-                  <div className="min-h-[calc(100vh-64px-180px)]">
+                <div className="p-2 sm:p-3 flex-1">
+                  <div className={isSalesPage ? "h-full" : "min-h-[calc(100vh-64px-140px)]"}>
                     {children}
                   </div>
                 </div>
                 
-                <Footer />
+                {!isSalesPage && <Footer />}
               </main>
             </div>
           </div>

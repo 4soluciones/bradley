@@ -9,9 +9,24 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   width?: string;
+  /** Reemplaza clases del título (p. ej. compacto: `text-sm font-black`) */
+  titleClassName?: string;
+  /** Padding del encabezado del modal */
+  headerClassName?: string;
+  /** Padding del cuerpo (por defecto p-8) */
+  bodyClassName?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, width = "max-w-4xl" }: ModalProps) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  width = "max-w-4xl",
+  titleClassName,
+  headerClassName,
+  bodyClassName = "p-8",
+}: ModalProps) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -37,22 +52,29 @@ export default function Modal({ isOpen, onClose, title, children, width = "max-w
       />
       
       {/* Modal Content */}
-      <div className={`relative w-full ${width} max-h-[90vh] overflow-hidden bg-card border border-border rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 flex flex-col`}>
+      <div className={`relative w-full ${width} max-h-[90vh] overflow-hidden bg-card border border-border rounded-2xl sm:rounded-[2rem] shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 flex flex-col`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-border shrink-0">
-          <h3 className="text-xl font-bold text-foreground tracking-tight">
+        <div
+          className={`flex items-center justify-between border-b border-border shrink-0 px-4 py-2.5 sm:px-5 sm:py-3 ${headerClassName ?? ""}`}
+        >
+          <h3
+            className={
+              titleClassName ??
+              "text-xl font-bold text-foreground tracking-tight"
+            }
+          >
             {title}
           </h3>
-          <button 
+          <button
             onClick={onClose}
-            className="p-2 rounded-xl border border-border hover:bg-foreground/5 transition-colors group"
+            className="p-1.5 rounded-lg border border-border hover:bg-foreground/5 transition-colors group shrink-0"
           >
-            <X className="w-5 h-5 text-foreground/40 group-hover:text-foreground transition-colors" />
+            <X className="w-4 h-4 text-foreground/40 group-hover:text-foreground transition-colors" />
           </button>
         </div>
-        
+
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${bodyClassName}`}>
           {children}
         </div>
       </div>

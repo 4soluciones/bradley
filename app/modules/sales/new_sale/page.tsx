@@ -16,12 +16,10 @@ import {
   User,
   PackageSearch,
   Clock3,
-  ChevronDown,
   CheckCircle2,
   AlertCircle,
-  ClipboardCheck,
-  Workflow,
   Construction,
+  MapPin,
 } from 'lucide-react';
 
 const SALE_STATUS_OPTIONS = [
@@ -167,6 +165,7 @@ interface ClientListItem {
   documentType: string;
   documentNumber: string;
   names: string;
+  address?: string | null;
 }
 
 interface ClientsData {
@@ -188,6 +187,7 @@ const CLIENTS_QUERY = gql`
       documentType
       documentNumber
       names
+      address
     }
   }
 `;
@@ -239,7 +239,13 @@ export default function NewSalePage() {
   const [clientHighlightIndex, setClientHighlightIndex] = useState(0);
 
   // Form State
-  const [client, setClient] = useState({ id: 1, name: 'CLIENTE VARIOS', documentType: '0', documentNumber: '-' });
+  const [client, setClient] = useState({
+    id: 1,
+    name: 'CLIENTE VARIOS',
+    documentType: '0',
+    documentNumber: '-',
+    address: '-',
+  });
   const [documentType, setDocumentType] = useState('03'); // Boleta
   const [saleStatus, setSaleStatus] = useState<string>('registrado');
   const [operationType, setOperationType] = useState<string>('0101');
@@ -436,6 +442,7 @@ export default function NewSalePage() {
       name: c.names,
       documentType: c.documentType,
       documentNumber: c.documentNumber,
+      address: (c.address && c.address.trim()) || '-',
     });
     setIsClientModalOpen(false);
     setClientSearchTerm('');
@@ -594,9 +601,11 @@ export default function NewSalePage() {
   const filteredClients = clientsData?.clients.filter((c) => {
     const normalized = clientSearchTerm.toLowerCase().trim();
     if (!normalized) return true;
+    const addr = (c.address ?? '').toLowerCase();
     return (
       c.names.toLowerCase().includes(normalized) ||
-      c.documentNumber?.toLowerCase().includes(normalized)
+      c.documentNumber?.toLowerCase().includes(normalized) ||
+      addr.includes(normalized)
     );
   }) ?? [];
 
@@ -666,231 +675,235 @@ export default function NewSalePage() {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  }) : '';
-
-  /* Tokens del tema (--background/--foreground) + color-scheme para <select> nativos */
-  const headerControlClass =
-    'w-full bg-background/50 text-foreground border border-border hover:border-accent/40 rounded-lg px-3 py-1.5 text-xs font-bold focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all appearance-none cursor-pointer shadow-sm';
-  const headerInputClass =
-    'w-full bg-background/50 text-foreground border border-border focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-lg px-3 py-1.5 text-xs font-black outline-none transition-all shadow-sm';
-  const headerLabelClass =
-    'text-[8px] text-foreground/30 font-black uppercase tracking-[0.2em] mb-1 flex items-center gap-1';
-  const optionClass = 'bg-background text-foreground font-bold py-1';
-
-  return (
-    <div className="flex w-full max-w-full min-w-0 min-h-0 flex-1 flex-col bg-background font-sans text-foreground selection:bg-accent/20 selection:text-accent-foreground overflow-hidden h-[calc(100dvh-9.5rem)] max-h-[calc(100dvh-9.5rem)] sm:h-[calc(100dvh-10rem)] sm:max-h-[calc(100dvh-10rem)]">
-      {/* 1. Header POS Industrial - High Density Grid */}
-      <header className="bg-card border-b border-border shadow-md px-3 sm:px-4 py-2 relative z-30 shrink-0 min-w-0">
-        <div className="w-full max-w-full mx-auto min-w-0 flex flex-col gap-2">
-          {/* Top Row: Brand & Status */}
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4 pb-2 border-b border-border/40 min-w-0">
-            <div className="flex items-center gap-3 sm:gap-4 group shrink-0 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white shadow-lg shadow-accent/20 transition-all rotate-3 group-hover:rotate-0 shrink-0">
-                <Construction className="w-6 h-6" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-lg sm:text-xl font-black tracking-tighter leading-none truncate">BRADLEY POS</span>
-                <span className="text-[8px] uppercase tracking-[0.2em] font-bold text-accent mt-0.5 opacity-80 italic truncate">Gestión de Punto de Venta Ferretero</span>
-              </div>
-            </div>
-
-            <div className="flex justify-center lg:flex-1 lg:min-w-0 px-2 sm:px-4 py-1.5 bg-slate-50/50 dark:bg-slate-900/40 rounded-full border border-border/50 max-w-full">
-              <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap min-w-0">
-                <div className="flex flex-col items-center min-w-0">
-                  <span className="text-[7px] font-black opacity-30 tracking-widest leading-none mb-1 text-center">OPERADOR ACTIVO</span>
-                  <div className="flex items-center gap-1.5 min-w-0 max-w-full justify-center">
-                    <User className="w-3 h-3 text-accent shrink-0" />
-                    <span className="text-[10px] font-black uppercase text-foreground/80 truncate max-w-[10rem] sm:max-w-[14rem]">{loggedUserName || 'CARGANDO...'}</span>
-                  </div>
-                </div>
-                <div className="h-8 w-px bg-border/40 shrink-0 hidden sm:block" />
-                <div className="flex flex-col items-center shrink-0">
-                  <span className="text-[7px] font-black opacity-30 tracking-widest leading-none mb-1 text-center">ESTADO TERMINAL</span>
-                  <div className="flex items-center gap-1.5 text-emerald-500">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
-                    <span className="text-[9px] font-black tracking-widest uppercase whitespace-nowrap">ONLINE</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-4 shrink-0">
-               <div className="flex flex-col text-right">
-                  <span className="text-[7px] font-black opacity-30 uppercase tracking-widest leading-none mb-1">Código Op</span>
-                  <span className="text-lg font-mono font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                    #{String(code).padStart(4, '0')}
-                  </span>
-               </div>
-            </div>
+  }) : '';  return (
+    <div className="flex w-full h-full min-w-0 flex-col bg-background font-sans text-foreground selection:bg-accent/20 selection:text-accent-foreground overflow-hidden border border-border rounded-xl shadow-2xl">
+      {/* 1. HEADER MULTILÍNEA */}
+      <header className="bg-card border-b border-border shadow-sm flex flex-col shrink-0 overflow-hidden">
+        {/* LÍNEA 1: MARCA Y ESTADO */}
+        <div className="px-5 py-1 flex items-center justify-between gap-4 bg-background/50">
+          <div className="text-sm font-black tracking-[0.2em] text-accent flex items-center gap-2">
+            <span className="bg-accent text-white px-1.5 py-0.5 rounded italic">B</span>
+            BRADLEY POS
           </div>
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{saleStatus.toUpperCase()}</span>
+          </div>
+        </div>
 
-          {/* Bottom Row: encaja al ancho (sin w-screen); apilado en móvil, 2 cols en md, 4 en xl */}
-          <div className="grid grid-cols-12 gap-3 items-stretch w-full max-w-full min-w-0">
-            {/* Fiscal Config */}
-            <div className="col-span-12 md:col-span-6 xl:col-span-3 flex flex-wrap gap-2 min-w-0">
-              <div className="flex-1 min-w-[8rem]">
-                <label className={headerLabelClass}>TIPO DOCUMENTO</label>
-                <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className={`${headerControlClass} max-w-full`}>
-                  <option value="03" className={optionClass}>BOLETA DE VENTA</option>
-                  <option value="01" className={optionClass}>FACTURA ELECTRÓNICA</option>
-                  <option value="00" className={optionClass}>RECIBO / TICKET POS</option>
-                </select>
-              </div>
-              <div className="w-20">
-                <label className={headerLabelClass}>SERIE</label>
-                <input value={serial} onChange={(e) => setSerial(e.target.value.toUpperCase())} className={headerInputClass} maxLength={4} />
-              </div>
-              <div className="w-24">
-                <label className={headerLabelClass}>CORRELA.</label>
-                <input type="number" value={correlative} onChange={(e) => setCorrelative(parseInt(e.target.value) || 0)} className={headerInputClass} />
-              </div>
+        {/* LÍNEA SEPARADORA COMPACTA */}
+        <div className="h-px w-full bg-border/40" />
+
+        {/* LÍNEA 2: METADATOS Y CONTROLES DE PANTALLA */}
+        <div className="px-5 py-2 flex items-center justify-between gap-4 text-[10px] font-bold uppercase whitespace-nowrap bg-card">
+          <div className="flex items-center gap-4">
+            {/* COLETA */}
+            <div className="flex items-center gap-1.5 bg-muted text-foreground/60 px-2 py-1 rounded-md border border-border/50">
+              <span className="opacity-40">#</span>
+              <span className="font-black tabular-nums">{String(code).padStart(4, '0')}</span>
             </div>
-
-            {/* Client Context Header */}
-            <div className="col-span-12 md:col-span-6 xl:col-span-3 min-w-0 md:border-l md:border-border/40 md:pl-3 xl:border-l xl:pl-3 pt-2 md:pt-0 border-t md:border-t-0 border-border/40">
-              <label className={headerLabelClass}>CLIENTE SELECCIONADO (F2)</label>
-              <div className="flex gap-2 min-w-0">
-                 <button type="button" onClick={() => setIsClientModalOpen(true)} className="flex-1 min-w-0 h-9 bg-background/50 border border-border px-3 rounded-lg flex items-center justify-between group hover:border-accent transition-all overflow-hidden text-left shadow-sm max-w-full">
-                   <div className="flex items-center gap-2 truncate">
-                     <span className="text-[11px] font-black uppercase text-accent truncate">{client.name}</span>
-                   </div>
-                   <div className="text-[9px] font-black opacity-30 group-hover:text-accent transition-colors shrink-0">{client.documentNumber}</div>
-                 </button>
-              </div>
-            </div>
-
-            {/* Sale Config Header */}
-            <div className="col-span-12 md:col-span-6 xl:col-span-3 min-w-0 md:border-l md:border-border/40 md:pl-3 xl:border-l xl:pl-3 pt-2 md:pt-0 border-t md:border-t-0 border-border/40">
-              <label className={headerLabelClass}>TIPO DE OPERACIÓN</label>
-              <select value={operationType} onChange={(e) => setOperationType(e.target.value)} className={`${headerControlClass} max-w-full`}>
-                {OPERATION_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value} className={optionClass}>{opt.label}</option>
-                ))}
+            
+            <div className="h-4 w-px bg-border/60" />
+            
+            {/* TIPO DOCUMENTO */}
+            <div className="flex items-center gap-2 group">
+              <span className="text-foreground/30 font-black">DOCUMENTO:</span>
+              <select 
+                value={documentType} 
+                onChange={(e) => setDocumentType(e.target.value)} 
+                className="bg-background border border-border rounded-md px-2 py-1 text-[10px] font-black focus:border-accent outline-none appearance-none cursor-pointer hover:border-accent/40 transition-colors"
+              >
+                <option value="03">BOLETA ELECTRÓNICA</option>
+                <option value="01">FACTURA ELECTRÓNICA</option>
+                <option value="00">NOTA DE VENTA</option>
               </select>
             </div>
 
-            {/* Status Header */}
-            <div className="col-span-12 md:col-span-6 xl:col-span-3 min-w-0 md:border-l md:border-border/40 md:pl-3 xl:border-l xl:pl-3 pt-2 md:pt-0 border-t md:border-t-0 border-border/40">
-              <label className={headerLabelClass}>ESTADO DE VENTA</label>
-              <select value={saleStatus} onChange={(e) => setSaleStatus(e.target.value)} className={`${headerControlClass} max-w-full`}>
-                {SALE_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value} className={optionClass}>{opt.label.toUpperCase()}</option>
-                ))}
-              </select>
+            <div className="h-4 w-px bg-border/60" />
+
+            {/* SERIE Y CORRELATIVO */}
+            <div className="flex items-center gap-2">
+              <span className="text-foreground/30 font-black">NÚMERO:</span>
+              <div className="flex items-center gap-1">
+                <input 
+                  value={serial} 
+                  onChange={(e) => setSerial(e.target.value.toUpperCase())} 
+                  className="w-12 bg-background border border-border rounded-md px-2 py-1 text-center font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all"
+                  maxLength={4}
+                />
+                <span className="opacity-20">-</span>
+                <input 
+                  type="number"
+                  value={correlative} 
+                  onChange={(e) => setCorrelative(parseInt(e.target.value) || 0)} 
+                  className="w-16 bg-background border border-border rounded-md px-2 py-1 text-center font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="h-4 w-px bg-border/60" />
+
+            {/* TIPO OPERACIÓN */}
+            <div className="hidden xl:flex items-center gap-2">
+              <span className="text-foreground/30 font-black">OPERACIÓN:</span>
+              <span className="font-black text-foreground/70">
+                {OPERATION_TYPE_OPTIONS.find(o => o.value === operationType)?.label || operationType}
+              </span>
             </div>
           </div>
+
+          {/* ICONOS PANTALLA SECUNDARIA */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={openCustomerDisplay}
+              title="Abrir pantalla cliente"
+              className="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-500/20 flex items-center gap-2"
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span className="text-[9px] font-black">DISPLAY</span>
+            </button>
+            <button
+              type="button"
+              onClick={clearDisplay}
+              title="Limpiar pantalla"
+              className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition-all border border-border hover:border-red-500/30"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* LÍNEA 3: ACCIONES PRINCIPALES */}
+        <div className="px-4 py-2 flex items-center gap-4 bg-muted/5 border-t border-border/30">
+          <button
+            type="button"
+            onClick={() => setIsProductModalOpen(true)}
+            className="flex-1 max-w-[320px] bg-accent hover:bg-accent/90 text-white h-11 rounded-xl font-black text-sm shadow-lg shadow-accent/20 flex items-center justify-center gap-3 active:scale-[0.98] transition-all uppercase tracking-tight group"
+          >
+            <Search className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <span>F4 Buscar producto</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsClientModalOpen(true)}
+            className="flex-[2] bg-card hover:bg-accent/5 border border-border hover:border-accent/40 h-11 rounded-xl px-4 flex items-center gap-4 transition-all group shadow-sm overflow-hidden"
+          >
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent/20 transition-colors">
+               <User className="w-4 h-4 text-accent" />
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black text-accent uppercase tracking-widest opacity-60">F2 Cliente</span>
+                <span className="text-[9px] font-bold text-foreground/40 font-mono tracking-tight bg-muted px-1.5 rounded">{client.documentNumber}</span>
+              </div>
+              <div className="text-sm font-black truncate uppercase text-foreground/80 leading-none mt-1">{client.name}</div>
+            </div>
+            <div className="text-[10px] font-black text-accent opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">CAMBIAR CLIENTE →</div>
+          </button>
         </div>
       </header>
 
-      {/* 2. Actions Bar - Master POS Controls restored */}
-      <nav className="bg-card/40 backdrop-blur-md px-2 sm:px-4 py-2 border-b border-border/50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0 min-w-0 max-w-full">
-        <div className="flex flex-wrap gap-2 min-w-0">
-          <button 
-            type="button" 
-            onClick={() => setIsProductModalOpen(true)}
-            className="bg-accent hover:bg-accent/90 text-white px-4 sm:px-8 py-2.5 rounded-xl font-black shadow-lg shadow-accent/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2 sm:gap-3 group shrink-0"
-          >
-            <PackageSearch className="w-5 h-5 group-hover:rotate-12 transition-transform shrink-0" />
-            <span className="text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap">Buscar (F4)</span>
-          </button>
-          
-          <button 
-            type="button" 
-            onClick={() => setIsClientModalOpen(true)}
-            className="bg-background hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-border px-3 sm:px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 text-xs opacity-80 hover:opacity-100 shrink-0"
-          >
-            <User className="w-4 h-4 text-accent shrink-0" />
-            <span className="whitespace-nowrap truncate max-w-[10rem] sm:max-w-none">Cliente (F2)</span>
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-          <button 
-            type="button" 
-            onClick={openCustomerDisplay}
-            title="Sincronizar Ventana de Cliente"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20 px-4 sm:px-6 py-2.5 rounded-xl font-black transition-all flex items-center gap-2 text-xs group shrink-0"
-          >
-            <Monitor className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform shrink-0" />
-            <span className="tracking-tight uppercase hidden min-[380px]:inline">Display cliente</span>
-            <span className="tracking-tight uppercase min-[380px]:hidden">Display</span>
-          </button>
-          
-          <div className="h-6 w-px bg-border/50 mx-1" />
-          
-          <button 
-            type="button" 
-            onClick={clearDisplay}
-            title="Limpiar Pantalla Secundaria"
-            className="bg-background text-foreground/45 hover:text-red-500 border border-border px-3 py-2.5 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-950/20"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </nav>
-
-      {/* 3. Main Sales Area - Fullscreen Grid Logic */}
-      <main className="flex-1 overflow-hidden p-2 sm:p-3 pt-0 flex flex-col min-w-0 max-w-full">
-        {/* Table Container - Takes available space */}
-        <div className="flex-1 bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col mb-2 min-w-0 max-w-full">
-          <div className="flex-1 overflow-auto custom-scrollbar min-w-0">
-            <table className="w-full min-w-0 max-w-full table-fixed text-left border-separate border-spacing-0">
-              <thead className="sticky top-0 z-20 backdrop-blur-md bg-background/90 supports-[backdrop-filter]:bg-background/75 border-b border-border">
-                <tr className="border-b border-border">
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-center border-b border-border w-10">#</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-center border-b border-border w-24">SKU</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 border-b border-border">Descripción Material</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-center border-b border-border w-24">Cant.</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-right border-b border-border w-32">P. Unit.</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-right border-b border-border w-32">Subtotal</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-center border-b border-border w-16">Monitor</th>
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/65 text-center border-b border-border w-16">Elim.</th>
+      {/* 2. ÁREA DE TRABAJO */}
+      <main className="flex-1 flex flex-col overflow-hidden p-3 min-h-0 bg-muted/10">
+        
+        {/* TABLA DE PRODUCTOS CON SCROLL INTERNO */}
+        <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto custom-scrollbar">
+            <table className="w-full text-left border-separate border-spacing-0">
+              <thead className="sticky top-0 z-20 backdrop-blur-md bg-background/90 border-b border-border">
+                <tr>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-24">SKU</th>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border">Descripción</th>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-28 text-center">Cant.</th>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-36 text-right">P.U. (INC IGV)</th>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-36 text-right">Total</th>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-28 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/40">
-                {cart.map((item, index) => (
-                  <tr key={`${item.id}-${item.tariffId}`} className="group hover:bg-accent/5 transition-colors">
-                    <td className="px-3 py-1.5 text-xs opacity-40 font-mono text-center">{String(index + 1).padStart(2, '0')}</td>
-                    <td className="px-3 py-1.5 text-center">
-                      <span className="text-[10px] font-black bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-border/50">{item.code}</span>
-                    </td>
-                    <td className="px-3 py-1.5 min-w-0 max-w-[1px]">
-                      <div className="text-[13px] font-black tracking-tight leading-tight truncate" title={item.name}>{item.name}</div>
-                    </td>
-                    <td className="px-3 py-1.5 text-center">
-                      <div className="inline-flex items-center bg-background/50 rounded-lg border border-border p-0.5">
-                        <button onClick={() => { const nc = [...cart]; if(nc[index].quantity > 0) nc[index].quantity -= 1; setCart(nc); }} className="w-5 h-5 flex items-center justify-center hover:bg-accent hover:text-white rounded text-xs transition-colors">-</button>
-                        <input type="number" step="0.01" value={item.quantity} onChange={(e) => { const nc = [...cart]; nc[index].quantity = parseFloat(e.target.value) || 0; setCart(nc); }} className="w-10 bg-transparent text-center font-black text-xs outline-none" />
-                        <button onClick={() => { const nc = [...cart]; nc[index].quantity += 1; setCart(nc); }} className="w-5 h-5 flex items-center justify-center hover:bg-accent hover:text-white rounded text-xs transition-colors">+</button>
-                      </div>
-                    </td>
-                    <td className="px-3 py-1.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <span className="text-[10px] opacity-30">S/</span>
-                        <input type="number" step="0.01" value={item.price} onChange={(e) => { const nc = [...cart]; nc[index].price = parseFloat(e.target.value) || 0; setCart(nc); }} className="w-16 bg-background border border-border rounded px-1.5 py-0.5 text-right font-black text-xs outline-none transition-all focus:ring-1 focus:ring-accent" />
-                      </div>
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm">
-                      S/ {(item.price * item.quantity).toFixed(2)}
-                    </td>
-                    <td className="px-3 py-1.5 text-center">
-                      <button onClick={() => sendToDisplay(item)} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${displayedProductId === item.id ? 'bg-emerald-500 text-white shadow-emerald-500/30 rotate-12 scale-110' : 'bg-slate-100 dark:bg-slate-800 text-foreground/40 hover:bg-orange-500 hover:text-white'}`} title="Enviar a Display">
-                        <Monitor className="w-5 h-5" />
-                      </button>
-                    </td>
-                    <td className="px-3 py-1.5 text-center">
-                      <button onClick={() => setCart(cart.filter((_, i) => i !== index))} className="w-7 h-7 text-foreground/20 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {cart.length === 0 && (
+              <tbody className="divide-y divide-border/30">
+                {cart.length > 0 ? (
+                  cart.map((item, index) => (
+                    <tr key={`${item.id}-${item.tariffId}`} className="group hover:bg-accent/5 transition-colors">
+                      <td className="px-5 py-3 font-mono text-[11px]">
+                        <span className="bg-muted px-2 py-1 rounded text-foreground/60 border border-border/40 font-black">
+                          {item.code}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="text-[13px] font-black tracking-tight leading-none" title={item.name}>
+                          {item.name}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-center bg-background border border-border rounded-xl p-0.5 w-full max-w-[100px] mx-auto group-hover:border-accent/40 transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => { const nc = [...cart]; if(nc[index].quantity > 0) nc[index].quantity -= 1; setCart(nc); }}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-accent hover:text-white rounded-lg text-xs font-black transition-all"
+                          > - </button>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.quantity}
+                            onChange={(e) => { const nc = [...cart]; nc[index].quantity = parseFloat(e.target.value) || 0; setCart(nc); }}
+                            className="w-12 bg-transparent text-center font-black text-xs outline-none tabular-nums"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { const nc = [...cart]; nc[index].quantity += 1; setCart(nc); }}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-accent hover:text-white rounded-lg text-xs font-black transition-all"
+                          > + </button>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5 font-bold text-[13px]">
+                          <span className="opacity-30">S/</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(e) => { const nc = [...cart]; nc[index].price = parseFloat(e.target.value) || 0; setCart(nc); }}
+                            className="w-24 bg-background/50 border border-border rounded-lg px-2 py-1.5 text-right font-black text-[13px] focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="text-[14px] font-black tabular-nums text-indigo-600 dark:text-indigo-400">
+                           S/ {(item.price * item.quantity).toFixed(2)}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => sendProductPayloadToDisplaySocket(item)}
+                            title="Ver en segunda pantalla"
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 ${displayedProductId === item.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-muted text-foreground/30 hover:bg-indigo-600 hover:text-white'}`}
+                          >
+                            <Monitor className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCart(cart.filter((_, i) => i !== index))}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center bg-muted text-foreground/30 hover:bg-red-500 hover:text-white transition-all active:scale-90"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan={8} className="py-24 text-center">
-                      <div className="flex flex-col items-center opacity-15">
-                        <PackageSearch className="w-14 h-14 mb-3" />
-                        <span className="text-lg font-black uppercase tracking-widest">Esperando Materiales (F4)</span>
+                    <td colSpan={6} className="py-40 text-center">
+                      <div className="flex flex-col items-center justify-center gap-6 opacity-20">
+                        <span className="text-8xl grayscale">🧾</span>
+                        <div className="flex flex-col gap-2">
+                           <span className="text-2xl font-black uppercase tracking-tighter">No hay productos</span>
+                           <span className="text-sm font-bold">Presiona F4 para iniciar la búsqueda</span>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -899,68 +912,106 @@ export default function NewSalePage() {
             </table>
           </div>
         </div>
-
-        {/* 4. Footer Liquidación - Static and prominent */}
-        <footer className="bg-card border-t border-accent/30 px-3 sm:px-6 py-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.35)] relative z-50 shrink-0 min-w-0 max-w-full">
-          <div className="w-full max-w-full mx-auto flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between min-w-0">
-            <div className="flex flex-wrap gap-6 sm:gap-10 items-center min-w-0">
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black uppercase opacity-30 tracking-widest leading-none mb-1">Items Lista</span>
-                <span className="text-xl font-black leading-none">{cart.length}</span>
-              </div>
-              <div className="h-8 w-px bg-border/50" />
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black uppercase opacity-30 tracking-widest leading-none mb-1 text-accent">Sincronización POS</span>
-                <div className="flex items-center gap-1.5 opacity-60">
-                  <Clock3 className="w-3.5 h-3.5 text-accent" />
-                  <span className="text-xs font-black">{mounted ? `${formattedDate} ${formattedTime}` : '...'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6 min-w-0 w-full lg:w-auto">
-              <div className="text-right sm:text-right min-w-0 flex-1">
-                <span className="text-[9px] font-black text-accent uppercase tracking-[0.2em] block mb-0.5">Total liquidar (IGV incl.)</span>
-                <div className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-foreground font-mono leading-none break-all sm:break-normal">
-                  <span className="text-base sm:text-lg opacity-20 mr-1 font-bold">S/</span>
-                  {calculateTotal().toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              
-              <button 
-                type="button" 
-                onClick={handleSaveSale} 
-                disabled={saveLoading || cart.length === 0}
-                className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-6 sm:px-10 py-3 sm:py-4 rounded-xl text-lg sm:text-xl font-black shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3 shrink-0 w-full sm:w-auto"
-              >
-                {saveLoading ? <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" /> : (
-                  <>
-                    <CheckCircle2 className="w-6 h-6" />
-                    <span>GUARDAR</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </footer>
       </main>
 
-      {/* Product Search Modal */}
+      {/* 3. FOOTER INTEGRADO (Todos los controles en la base) */}
+      <footer className="bg-card border-t border-border px-6 py-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex items-center justify-between shrink-0 relative z-30">
+        {/* INFO IZQUIERDA */}
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4">
+             <div className="flex flex-col">
+               <span className="text-[9px] font-black uppercase opacity-40 leading-none">Ítems</span>
+               <span className="text-2xl font-black leading-none tabular-nums text-accent">{cart.length}</span>
+             </div>
+             <div className="h-8 w-px bg-border" />
+             <div className="flex flex-col">
+               <span className="text-[9px] font-black uppercase opacity-40 leading-none">Hora Sistema</span>
+               <span className="text-[12px] font-black tabular-nums opacity-60">
+                  {mounted ? formattedTime : '…'}
+               </span>
+             </div>
+          </div>
+          
+          <div className="h-10 w-px bg-border" />
+
+          {/* TOTALES DESGLOSADOS */}
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-black uppercase opacity-40 leading-none">Subtotal</span>
+              <span className="text-[14px] font-bold font-mono">
+                 S/ {(calculateTotal() / 1.18).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-black uppercase opacity-40 leading-none">IGV (18%)</span>
+              <span className="text-[14px] font-bold font-mono">
+                 S/ {(calculateTotal() - (calculateTotal() / 1.18)).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* TOTAL Y ACCIÓN DERECHA */}
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end gap-1">
+             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-accent leading-none">Total Neto</span>
+             <div className="text-4xl font-black tabular-nums tracking-tighter text-indigo-600 dark:text-indigo-400 drop-shadow-sm">
+                <span className="text-base opacity-30 mr-2 font-bold italic">S/</span>
+                {calculateTotal().toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+             </div>
+          </div>
+
+          <div className="h-14 w-px bg-border" />
+
+          {/* MÉTODO PAGO Y BOTÓN PAGAR */}
+          <div className="flex items-center gap-3 bg-muted/40 p-2 rounded-2xl border border-border/50">
+            <div className="flex flex-col gap-1">
+              <span className="text-[8px] font-black uppercase opacity-40 px-1">Método</span>
+              <select className="bg-background border border-border rounded-lg text-xs font-black py-2 pl-3 pr-8 outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer appearance-none shadow-sm">
+                 <option value="1">EFECTIVO</option>
+                 <option value="2">TARJETA</option>
+                 <option value="3">TRANSFERENCIA</option>
+                 <option value="4">YAPE/PLIN</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSaveSale}
+              disabled={saveLoading || cart.length === 0}
+              className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 text-white min-w-[160px] h-12 rounded-xl flex flex-col items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-95 transition-all group"
+            >
+              {saveLoading ? (
+                <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span className="text-[10px] font-bold opacity-60 uppercase leading-none">Confirmar</span>
+                  <span className="text-xl font-black tracking-tight leading-none mt-1 uppercase">Pagar Venta</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </footer>
+
+
       {/* Modals - Industrial Re-design */}
-      <Modal 
-        isOpen={isProductModalOpen} 
+      <Modal
+        isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
-        title="Buscador Maestro de Materiales"
-        width="max-w-5xl"
+        title="Buscar material"
+        width="max-w-4xl"
+        titleClassName="text-sm font-black text-foreground tracking-tight uppercase"
+        bodyClassName="p-3 sm:p-4"
       >
-        <div className="flex flex-col gap-6 p-2" style={{ colorScheme: formColorScheme }}>
+        <div className="flex flex-col gap-3" style={{ colorScheme: formColorScheme }}>
             <div className="relative group">
-              <Search className="w-6 h-6 text-accent absolute left-5 top-1/2 -translate-y-1/2 group-focus-within:scale-110 transition-transform pointer-events-none z-10" />
-              <input 
+              <Search className="w-4 h-4 text-accent absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 opacity-80" />
+              <input
                   ref={productSearchInputRef}
-                  type="text" 
-                  placeholder="Escanee código de barras o escriba nombre del material (ej: Cemento, Tubo PVC)..."
-                  className="w-full pl-16 pr-6 py-5 bg-background text-foreground border-2 border-border rounded-2xl focus:border-accent focus:bg-card focus:ring-4 focus:ring-accent/20 outline-none text-xl font-bold shadow-sm transition-all placeholder:text-foreground/45 dark:placeholder:text-foreground/35"
+                  type="text"
+                  placeholder="Código o nombre…"
+                  className="w-full pl-9 pr-3 py-2 bg-background text-foreground border border-border rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none text-sm font-semibold shadow-sm placeholder:text-foreground/40"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
@@ -982,80 +1033,77 @@ export default function NewSalePage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-1.5 max-h-[min(52vh,28rem)] overflow-y-auto pr-1 custom-scrollbar">
                 {productsLoading ? (
-                    <div className="flex flex-col items-center justify-center p-20 gap-4">
-                        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
-                        <div className="text-foreground/50 font-bold uppercase tracking-widest text-xs">Consultando inventario…</div>
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                        <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                        <div className="text-foreground/50 font-bold uppercase text-[10px]">Cargando…</div>
                     </div>
                 ) : filteredProducts?.length > 0 ? (
                     filteredProducts.map((p: any, idx: number) => (
-                        <button 
-                            key={p.id} 
+                        <button
+                            key={p.id}
                             type="button"
                             data-product-highlight={idx}
                             onClick={() => addToCart(p)}
-                            className={`flex items-center gap-6 p-4 rounded-2xl border-2 transition-all text-left group relative overflow-hidden active:scale-[0.98] ${
+                            className={`flex items-center gap-2 sm:gap-3 p-2 rounded-lg border transition-all text-left active:scale-[0.99] ${
                               idx === productHighlightIndex
-                                ? 'border-accent bg-orange-50 dark:bg-orange-950/45 ring-2 ring-accent/40 shadow-md'
-                                : 'border-border hover:border-accent bg-card hover:bg-orange-50/70 dark:hover:bg-orange-950/30'
+                                ? 'border-accent bg-orange-50 dark:bg-orange-950/40 ring-1 ring-accent/50'
+                                : 'border-border hover:border-accent/60 bg-card'
                             }`}
                         >
-                            <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden flex items-center justify-center p-2 border-2 border-border bg-background dark:bg-zinc-900/90 ring-1 ring-border/60 group-hover:border-accent/50 dark:group-hover:border-accent/40 transition-colors">
+                            <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-md overflow-hidden flex items-center justify-center p-1 border border-border bg-background">
                                {p.imageUrl ? (
-                                   <img src={`${getApiBaseUrl()}${p.imageUrl}`} alt="" className="w-full h-full object-contain bg-white/80 dark:bg-zinc-950/50 group-hover:scale-110 transition-transform duration-500" />
+                                   <img src={`${getApiBaseUrl()}${p.imageUrl}`} alt="" className="w-full h-full object-contain" />
                                ) : (
-                                   <PackageSearch className="w-10 h-10 text-foreground/35 dark:text-foreground/45" />
+                                   <PackageSearch className="w-5 h-5 text-foreground/35" />
                                )}
                             </div>
-                            
-                            <div className="flex-1 flex flex-col justify-center">
-                                <div className="text-xl font-black text-foreground group-hover:text-accent tracking-tight leading-tight">{p.name}</div>
-                                <div className="flex items-center gap-4 mt-2">
-                                  <span className="bg-slate-800 dark:bg-slate-950 text-white text-[10px] px-2 py-0.5 rounded font-mono font-bold tracking-widest">{p.code || 'SKU-NONE'}</span>
-                                  <span className="text-xs text-foreground/50 font-bold flex items-center gap-1 uppercase">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                    Disponible en Almacén
+
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                <div className="text-sm font-bold text-foreground leading-snug line-clamp-2">{p.name}</div>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                  <span className="bg-slate-800 dark:bg-slate-950 text-white text-[9px] px-1.5 py-px rounded font-mono">{p.code || '—'}</span>
+                                  <span className="text-[9px] text-foreground/45 font-semibold">
+                                    Stk {p.productStores?.[0]?.stock ?? 0}
                                   </span>
                                 </div>
                             </div>
 
-                            <div className="text-right flex flex-col items-end pr-4">
-                                <div className="text-[10px] text-foreground/50 font-black uppercase tracking-widest mb-1">Precio con IGV</div>
-                                <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
-                                  <span className="text-lg mr-1 opacity-50 font-bold">S/</span>
+                            <div className="text-right shrink-0 pr-1">
+                                <div className="text-[8px] text-foreground/45 font-bold uppercase">IGV</div>
+                                <div className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 font-mono">
                                   {p.tariffs?.[0]?.priceWithIgv?.toFixed(2) || '0.00'}
-                                </div>
-                                <div className={`text-xs mt-1 font-black px-2 py-0.5 rounded ${p.productStores?.[0]?.stock > 5 ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/50' : 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/60 border border-red-200/80 dark:border-red-800/50'}`}>
-                                  STOCK: {p.productStores?.[0]?.stock || 0} UNI
                                 </div>
                             </div>
                         </button>
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-20 opacity-40 gap-4 text-foreground">
-                        <AlertCircle className="w-16 h-16" />
-                        <div className="text-xl font-black uppercase tracking-[0.2em]">Material no encontrado</div>
+                    <div className="flex flex-col items-center justify-center py-12 opacity-40 gap-2 text-foreground">
+                        <AlertCircle className="w-8 h-8" />
+                        <div className="text-xs font-black uppercase tracking-wide">Sin resultados</div>
                     </div>
                 )}
             </div>
         </div>
       </Modal>
 
-      <Modal 
-        isOpen={isClientModalOpen} 
+      <Modal
+        isOpen={isClientModalOpen}
         onClose={() => setIsClientModalOpen(false)}
-        title="Base de Datos de Clientes"
-        width="max-w-3xl"
+        title="Clientes"
+        width="max-w-2xl"
+        titleClassName="text-sm font-black text-foreground tracking-tight uppercase"
+        bodyClassName="p-3 sm:p-4"
       >
-        <div className="flex flex-col gap-6 p-2" style={{ colorScheme: formColorScheme }}>
+        <div className="flex flex-col gap-3" style={{ colorScheme: formColorScheme }}>
           <div className="relative group">
-            <User className="w-6 h-6 text-foreground/45 dark:text-foreground/50 absolute left-5 top-1/2 -translate-y-1/2 group-focus-within:text-accent transition-colors pointer-events-none z-10" />
+            <User className="w-4 h-4 text-foreground/45 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <input
               ref={clientSearchInputRef}
               type="text"
-              placeholder="Buscar por RUC, DNI o nombres..."
-              className="w-full pl-16 pr-6 py-4 bg-background text-foreground border-2 border-border rounded-2xl outline-none font-bold focus:border-accent focus:ring-4 focus:ring-accent/15 focus:bg-card placeholder:text-foreground/40 dark:placeholder:text-foreground/35 shadow-sm transition-all"
+              placeholder="RUC, DNI, nombre o dirección…"
+              className="w-full pl-9 pr-3 py-2 bg-background text-foreground border border-border rounded-lg outline-none text-sm font-semibold focus:border-accent focus:ring-2 focus:ring-accent/15 placeholder:text-foreground/40 shadow-sm"
               value={clientSearchTerm}
               onChange={(e) => setClientSearchTerm(e.target.value)}
               onKeyDown={(e) => {
@@ -1077,14 +1125,15 @@ export default function NewSalePage() {
             />
           </div>
 
-          <div className="rounded-3xl border border-border overflow-hidden shadow-inner bg-card">
-            <div className="grid grid-cols-12 bg-border/25 dark:bg-background/80 border-b border-border p-4 text-[10px] uppercase font-black tracking-widest text-foreground/80 dark:text-foreground/85">
-              <div className="col-span-3">Documento</div>
-              <div className="col-span-9">Nombres / Razón Social</div>
+          <div className="rounded-lg border border-border overflow-hidden bg-card">
+            <div className="grid grid-cols-12 gap-1 bg-border/20 border-b border-border px-2 py-1.5 text-[8px] uppercase font-black tracking-wide text-foreground/70">
+              <div className="col-span-3">Doc</div>
+              <div className="col-span-5 sm:col-span-4">Nombre</div>
+              <div className="col-span-4 sm:col-span-5 hidden sm:block">Dirección</div>
             </div>
-            <div className="max-h-80 overflow-y-auto divide-y divide-border">
+            <div className="max-h-[min(50vh,22rem)] overflow-y-auto divide-y divide-border">
               {clientsLoading ? (
-                <div className="p-10 text-center animate-pulse text-foreground/45 font-bold">Accediendo a registros…</div>
+                <div className="py-8 text-center animate-pulse text-foreground/45 text-xs font-bold">Cargando…</div>
               ) : filteredClients.length > 0 ? (
                 filteredClients.map((c, idx) => (
                   <button
@@ -1092,28 +1141,32 @@ export default function NewSalePage() {
                     type="button"
                     data-client-highlight={idx}
                     onClick={() => selectClient(c)}
-                    className={`w-full grid grid-cols-12 items-center p-4 text-left transition-all active:scale-[0.99] group ${
+                    className={`w-full grid grid-cols-12 items-start gap-1 p-2 text-left text-[11px] transition-colors active:scale-[0.99] ${
                       idx === clientHighlightIndex
-                        ? 'bg-card shadow-md ring-2 ring-inset ring-accent/50'
-                        : 'hover:bg-card hover:shadow-lg hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50'
+                        ? 'bg-accent/10 ring-1 ring-inset ring-accent/40'
+                        : 'hover:bg-muted/50'
                     }`}
                   >
-                    <div className="col-span-3 flex flex-col">
-                      <span className="text-[10px] font-black text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-950/70 border border-orange-200/80 dark:border-orange-800/50 w-fit px-1.5 rounded mb-1">
+                    <div className="col-span-3 min-w-0">
+                      <span className="inline-block text-[8px] font-black text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-950/70 px-1 rounded mb-0.5">
                         {DOCUMENT_TYPE_LABELS[c.documentType] || c.documentType}
                       </span>
-                      <span className="font-mono font-bold text-foreground/70">{c.documentNumber || '-'}</span>
+                      <span className="block font-mono font-bold text-foreground/80 truncate" title={c.documentNumber || ''}>{c.documentNumber || '-'}</span>
                     </div>
-                    <div className="col-span-8">
-                      <div className="text-foreground font-black tracking-tight group-hover:text-accent transition-colors">{c.names}</div>
+                    <div className="col-span-5 sm:col-span-4 min-w-0 font-bold leading-tight line-clamp-2" title={c.names}>
+                      {c.names}
                     </div>
-                    <div className="col-span-1 flex justify-end">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 transition-all" />
+                    <div className="col-span-4 sm:col-span-5 min-w-0 hidden sm:flex items-start gap-1 text-foreground/55 leading-tight">
+                      <MapPin className="w-3 h-3 shrink-0 mt-0.5 opacity-50" />
+                      <span className="line-clamp-2 text-[10px]" title={c.address || ''}>{c.address || '—'}</span>
+                    </div>
+                    <div className="col-span-12 sm:hidden text-[9px] text-foreground/45 pl-0.5 line-clamp-1">
+                      {c.address || '—'}
                     </div>
                   </button>
                 ))
               ) : (
-                <div className="p-12 text-center text-foreground/40 font-bold italic">No se encontraron registros de clientes</div>
+                <div className="py-8 text-center text-foreground/40 text-xs font-medium">Sin clientes</div>
               )}
             </div>
           </div>
