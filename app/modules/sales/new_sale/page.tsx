@@ -691,8 +691,10 @@ export default function NewSalePage() {
           </div>
         </div>
 
+
         {/* LÍNEA SEPARADORA COMPACTA */}
         <div className="h-px w-full bg-border/40" />
+
 
         {/* LÍNEA 2: METADATOS Y CONTROLES DE PANTALLA */}
         <div className="px-5 py-2 flex items-center justify-between gap-4 text-[10px] font-bold uppercase whitespace-nowrap bg-card">
