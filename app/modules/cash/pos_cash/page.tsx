@@ -350,11 +350,11 @@ export default function PosCashPage() {
   const cardClass = 'bg-card rounded-lg border border-border shadow-sm';
   /** Solo panel izquierdo: lista de productos. max-h suaviza móvil/tablet. */
   const leftLinesScrollClass =
-    'h-[430px] max-h-[65dvh] shrink-0 overflow-y-auto overflow-x-hidden custom-scrollbar';
+    'flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar';
 
   return (
     <div
-      className="flex w-full max-w-full min-w-0 flex-1 flex-col bg-background font-sans text-foreground selection:bg-accent/20 selection:text-accent-foreground min-h-0"
+      className="flex w-full max-w-full min-w-0 flex-1 flex-col bg-background font-sans text-foreground selection:bg-accent/20 selection:text-accent-foreground min-h-0 h-full"
       style={{ colorScheme: formColorScheme }}
     >
       <header className="bg-card border-b border-border px-2 py-1 relative z-10 shrink-0 min-w-0">
@@ -470,7 +470,7 @@ export default function PosCashPage() {
                   </div>
 
                   {/* Tabla compacta: solo este bloque con scroll (altura moderada) */}
-                  <div className="shrink-0 flex flex-col border border-border rounded-md overflow-hidden bg-background/20">
+                  <div className="flex-1 min-h-0 flex flex-col border border-border rounded-md overflow-hidden bg-background/20">
                     <div
                       className="grid grid-cols-[minmax(0,1fr)_2.25rem_3.5rem_4rem] gap-x-1 items-center px-1.5 py-0.5 bg-background/80 border-b border-border text-[9px] text-foreground/55 font-black uppercase shrink-0"
                       aria-hidden
@@ -573,32 +573,32 @@ export default function PosCashPage() {
                               selectedWayPay === w.id ? 'bg-accent text-white' : 'bg-card border border-border text-foreground/45'
                             }`}
                           >
-                            <WayPayIcon id={w.id} className="w-3 h-3" />
+                          <WayPayIcon id={w.id} className="w-3.5 h-3.5" />
                           </div>
-                          <span className="text-[8px] font-black uppercase leading-tight line-clamp-2">{w.label}</span>
+                          <span className="text-[10px] font-black uppercase leading-tight line-clamp-2">{w.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Monto + vuelto en una fila */}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 border-t border-border">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[10px] font-black text-foreground/55 uppercase shrink-0">Monto:</span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 border-t border-border">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[11px] font-black text-foreground/55 uppercase shrink-0">Monto:</span>
                       <div className="relative">
-                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-foreground/40">S/</span>
+                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[11px] font-black text-foreground/40">S/</span>
                         <input
                           type="number"
                           value={amountPaid}
                           onChange={(e) => setAmountPaid(e.target.value)}
                           placeholder="0.00"
-                          className="h-7 w-[6.5rem] pl-6 pr-1.5 bg-card border border-border rounded-md text-xs font-black text-foreground focus:border-accent focus:ring-1 focus:ring-accent/20 outline-none tabular-nums"
+                          className="h-9 w-[7.5rem] pl-7 pr-1.5 bg-card border border-border rounded-md text-sm font-black text-foreground focus:border-accent focus:ring-1 focus:ring-accent/20 outline-none tabular-nums"
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black text-foreground/55 uppercase">Vuelto:</span>
-                      <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-black text-foreground/55 uppercase">Vuelto:</span>
+                      <span className="text-base font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
                         S/ {calculateChange().toFixed(2)}
                       </span>
                     </div>
@@ -623,7 +623,7 @@ export default function PosCashPage() {
                     type="button"
                     onClick={handlePayment}
                     disabled={payLoading || !selectedCash || selectedWayPay == null}
-                    className="w-full h-9 rounded-md bg-emerald-500 hover:bg-emerald-600 disabled:opacity-45 disabled:cursor-not-allowed text-white text-xs font-black shadow-sm flex items-center justify-center gap-2 transition-colors"
+                    className="w-full h-10 rounded-md bg-emerald-500 hover:bg-emerald-600 disabled:opacity-45 disabled:cursor-not-allowed text-white text-sm font-black shadow-sm flex items-center justify-center gap-2 transition-colors"
                   >
                     {payLoading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

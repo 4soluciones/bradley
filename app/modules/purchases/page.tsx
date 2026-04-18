@@ -463,335 +463,379 @@ export default function PurchasesPage() {
   const addQuota = () => {
     const nextNumber = quotas.length + 1;
     setQuotas([...quotas, { number: nextNumber, paymentDate: new Date().toISOString().split('T')[0], total: 0 }]);
-  };
-
-  return (
-    <div className="w-full space-y-6 animate-in fade-in zoom-in-95 duration-700">
-      {/* Header Container */}
-      <div className="bg-card px-8 py-8 rounded-[2.5rem] border border-border flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-3xl bg-orange-600 flex items-center justify-center text-white shadow-xl shadow-orange-600/20">
-            <ShoppingCart className="w-8 h-8" />
+  };  return (
+    <div className="h-[calc(100vh-2rem)] w-full flex flex-col gap-3 font-sans text-foreground overflow-hidden animate-in fade-in duration-500">
+      
+      {/* 1. TOP HEADER - Compact & Professional */}
+      <header className="bg-card border border-border border-b-2 border-b-orange-600 rounded-xl shadow-md p-3 flex items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-white shadow-inner">
+            <ShoppingCart className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">Registro de <span className="text-orange-600">Compras</span></h1>
-            <div className="flex items-center gap-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/30 ml-1">Sistema Industrial de Abastecimiento</p>
-              <Link href="/modules/purchases/report" className="flex items-center gap-1.5 px-3 py-1 bg-orange-600/10 text-orange-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-orange-600/20 transition-all">
-                <FileSearch className="w-3 h-3" /> Ver Reporte
+            <h1 className="text-lg font-black uppercase tracking-tighter flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="flex flex-wrap items-center gap-x-2">
+                Registro de Compras
+              </span>
+              <Link href="/modules/purchases/report" className="text-[10px] font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 shrink-0">
+                <FileSearch className="w-3 h-3" /> EXAMINAR HISTORIAL
               </Link>
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col items-end">
-            <p className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">Total Documento</p>
-            <p className="text-3xl font-black text-orange-600">
-                {formData.currencyType === 'PEN' ? 'S/' : '$'} {totals.totalAmount.toFixed(2)}
-            </p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-        {/* Upper Form Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 bg-card border border-border rounded-[2.5rem] p-8 shadow-sm space-y-8 relative">
-             <div className="absolute -top-3 left-10 px-4 py-1.5 bg-foreground font-black text-[9px] text-background uppercase tracking-[0.2em] rounded-full">
-                1. Datos Generales
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Comprobante</label>
-                    <div className="relative">
-                        <select name="documentType" value={formData.documentType} onChange={handleHeaderChange} className="w-full pl-4 pr-10 py-3.5 bg-foreground/[0.03] border border-border rounded-2xl text-[12px] font-bold appearance-none focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600 transition-all cursor-pointer">
-                            <option value="01">FACTURA</option>
-                            <option value="03">BOLETA</option>
-                            <option value="NA">NO APLICA</option>
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30 pointer-events-none" />
-                    </div>
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Serie</label>
-                    <input type="text" name="serial" value={formData.serial} onChange={handleHeaderChange} placeholder="F001" className="w-full px-4 py-3.5 bg-foreground/[0.03] border border-border rounded-2xl text-[12px] font-black focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Correlativo</label>
-                    <input type="number" name="correlative" value={formData.correlative || ""} onChange={handleHeaderChange} placeholder="1" className="w-full px-4 py-3.5 bg-foreground/[0.03] border border-border rounded-2xl text-[12px] font-black focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600" />
-                </div>
-             </div>
-
-             <div className="space-y-1.5">
-                <Autocomplete
-                    label="Proveedor *"
-                    options={resourcesData?.suppliers.map(s => ({ id: s.id, label: `${s.names} (${s.documentNumber})` })) || []}
-                    value={formData.supplierId}
-                    onChange={(val) => setFormData(prev => ({ ...prev, supplierId: String(val) }))}
-                    placeholder="Busque proveedor..."
-                    icon={<Truck className="w-4 h-4" />}
-                />
-             </div>
-
-             <div className="grid grid-cols-2 gap-6">
-                <Autocomplete
-                    label="Sede / Sucursal *"
-                    options={resourcesData?.subsidiaries.map(s => ({ id: s.id, label: s.name })) || []}
-                    value={formData.subsidiaryId}
-                    onChange={(val) => setFormData(prev => ({ ...prev, subsidiaryId: String(val), warehouseId: "" }))}
-                    placeholder="Seleccione sede..."
-                    icon={<Construction className="w-4 h-4" />}
-                />
-                <Autocomplete
-                    label="Almacén de Destino *"
-                    options={filteredWarehouses.map(w => ({ id: w.id, label: w.name }))}
-                    value={formData.warehouseId}
-                    onChange={(val) => setFormData(prev => ({ ...prev, warehouseId: String(val) }))}
-                    placeholder="Seleccione..."
-                    icon={<WarehouseIcon className="w-4 h-4" />}
-                    disabled={!formData.subsidiaryId}
-                />
-             </div>
-             
-             <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Observaciones</label>
-                <textarea name="observation" value={formData.observation} onChange={handleHeaderChange} rows={1} className="w-full px-4 py-3 bg-foreground/[0.03] border border-border rounded-2xl text-[12px] font-bold focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600 resize-none" placeholder="..." />
-             </div>
-          </div>
-
-          <div className="lg:col-span-4 bg-card border border-border rounded-[2.5rem] p-8 shadow-sm space-y-6 relative flex flex-col">
-             <div className="absolute -top-3 left-10 px-4 py-1.5 bg-foreground font-black text-[9px] text-background uppercase tracking-[0.2em] rounded-full">
-                2. Fechas y Moneda
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-foreground/30 uppercase tracking-widest ml-1">F. Emisión</label>
-                    <input type="date" name="emitDate" value={formData.emitDate} onChange={handleHeaderChange} className="w-full px-3 py-3 bg-foreground/[0.02] border border-border rounded-xl text-[11px] font-bold" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-foreground/30 uppercase tracking-widest ml-1">Hora</label>
-                    <input type="time" name="emitTime" value={formData.emitTime} onChange={handleHeaderChange} className="w-full px-3 py-3 bg-foreground/[0.02] border border-border rounded-xl text-[11px] font-bold" />
-                </div>
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-foreground/30 uppercase tracking-widest ml-1">Contable</label>
-                    <input type="date" name="operationDate" value={formData.operationDate} onChange={handleHeaderChange} className="w-full px-3 py-3 bg-foreground/[0.02] border border-border rounded-xl text-[11px] font-bold" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-foreground/30 uppercase tracking-widest ml-1">Vencimiento</label>
-                    <input type="date" name="dueDate" value={formData.dueDate} onChange={handleHeaderChange} className="w-full px-3 py-3 bg-foreground/[0.02] border border-border rounded-xl text-[11px] font-bold" />
-                </div>
-             </div>
-
-             <div className="space-y-1.5">
-                <Autocomplete
-                    label="Responsable *"
-                    options={resourcesData?.users.map(u => ({ id: u.id, label: u.username })) || []}
-                    value={formData.userId}
-                    onChange={(val) => setFormData(prev => ({ ...prev, userId: String(val) }))}
-                    placeholder="Seleccione responsable..."
-                    icon={<User className="w-4 h-4" />}
-                />
-             </div>
-             <div className="grid grid-cols-2 gap-4 pt-4 mt-auto">
-                <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-foreground/30 uppercase tracking-widest ml-1">Moneda</label>
-                    <select name="currencyType" value={formData.currencyType} onChange={handleHeaderChange} className="w-full px-3 py-3 bg-foreground/[0.03] border border-border rounded-xl text-[11px] font-black appearance-none">
-                        <option value="PEN">SOLES</option>
-                        <option value="USD">DÓLARES</option>
-                    </select>
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-foreground/30 uppercase tracking-widest ml-1">Tipo Cambio</label>
-                    <input type="number" step="0.001" name="purchaseExchangeRate" value={formData.purchaseExchangeRate} onChange={handleHeaderChange} className="w-full px-3 py-3 bg-foreground/[0.03] border border-border rounded-xl text-[11px] font-black" />
-                </div>
-             </div>
+            </h1>
           </div>
         </div>
 
-        {/* Item Detail Grid */}
-        <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-sm">
-            <div className="px-8 py-6 bg-foreground/[0.01] border-b border-border flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-orange-600/10 rounded-2xl text-orange-600">
-                        <PackageSearch className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-[12px] font-black uppercase tracking-widest">3. Artículos Seleccionados</h3>
-                </div>
-                <button type="button" onClick={() => addDetail()} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 shadow-lg shadow-orange-600/20 transition-all flex items-center gap-2">
-                    <Plus className="w-4 h-4" /> Agregar Fila
-                </button>
-            </div>
-            <div className="overflow-visible">
-                <table className="w-full text-left border-collapse excel-grid relative z-20">
-                    <thead>
-                        <tr className="bg-foreground/[0.05]">
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border w-32">Cód</th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border">Producto</th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border w-28 text-center">Cant</th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border w-32 text-right">P. Unitario</th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border w-28 text-right">Dscto</th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border w-36 text-right">Total</th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40 border border-border w-24 text-center"></th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                        {details.map((item) => (
-                            <tr key={item.id} className="group hover:bg-orange-600/[0.02]">
-                                <td className="p-0 border border-border"><div className="px-4 text-[11px] font-bold text-foreground/30 text-center">{item.productCode || '---'}</div></td>
-                                <td className="p-0 border border-border relative">
-                                    <Autocomplete
-                                        options={productsData?.products.map(p => ({ id: String(p.id), label: p.code ? `[${p.code}] ${p.name}` : p.name })) || []}
-                                        value={item.productId}
-                                        onChange={(val) => selectProductForDetail(item.id, val)}
-                                        placeholder="Buscar producto (min. 3 letras)..."
-                                        hideLabel
-                                        isGrid
-                                        minSearchLength={3}
-                                    />
-                                </td>
-                                <td className="p-0 border border-border">
-                                    <input type="number" value={item.quantity} onChange={(e) => updateDetail(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="w-full px-4 py-4 text-[12px] font-black text-center focus:bg-white focus:ring-0 outline-none" />
-                                </td>
-                                <td className="p-0 border border-border">
-                                    <div className="relative flex items-center">
-                                        <span className="absolute left-3 text-[10px] text-foreground/20 font-black tracking-widest">{formData.currencyType === 'PEN' ? 'S/' : '$'}</span>
-                                        <input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateDetail(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} className="w-full pl-10 pr-4 py-4 text-[12px] font-black text-right focus:bg-white focus:ring-0 outline-none" />
-                                    </div>
-                                </td>
-                                <td className="p-0 border border-border">
-                                    <input type="number" step="0.01" value={item.discount} onChange={(e) => updateDetail(item.id, 'discount', parseFloat(e.target.value) || 0)} className="w-full px-4 py-4 text-[12px] font-black text-right focus:bg-white focus:ring-0 outline-none" />
-                                </td>
-                                <td className="p-0 border border-border bg-foreground/[0.01]">
-                                    <div className="px-6 py-4 text-[13px] font-black text-right text-foreground">{item.total.toFixed(2)}</div>
-                                </td>
-                                <td className="p-0 border border-border">
-                                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button type="button" onClick={() => removeDetail(item.id)} className="p-2 hover:bg-red-500 hover:text-white rounded-lg transition-all text-foreground/20"><Trash2 className="w-4 h-4" /></button>
-                                        <button type="button" onClick={() => addDetail()} className="p-2 hover:bg-orange-600 hover:text-white rounded-lg transition-all text-orange-600/40"><Plus className="w-4 h-4" /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+        <div className="flex items-center gap-6 divide-x divide-border">
+           <div className="px-4 text-right">
+              <p className="text-[9px] font-black text-foreground/50 uppercase tracking-widest leading-tight">Tipo de Cambio</p>
+              <p className="text-sm font-black text-foreground italic">S/ {formData.purchaseExchangeRate.toFixed(3)}</p>
+           </div>
+           <div className="px-4 flex flex-col items-end">
+              <p className="text-[9px] font-black text-orange-600 uppercase tracking-[.2em] leading-tight">Monto Total</p>
+              <p className="text-2xl font-black text-foreground tracking-tighter">
+                <span className="text-orange-600 mr-1">{formData.currencyType === 'PEN' ? 'S/' : '$'}</span>
+                {totals.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+           </div>
         </div>
+      </header>
 
-        {/* Footer: Payment & Totals */}
-        <div className="bg-card border border-border rounded-[2.5rem] p-10 shadow-sm relative overflow-visible">
-             <div className="absolute -top-3 left-10 px-4 py-1.5 bg-foreground font-black text-[9px] text-background uppercase tracking-[0.2em] rounded-full">
-                4. Cierre y Pago
-             </div>
-             
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-                <div className="space-y-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-orange-600/10 rounded-xl text-orange-600"><DollarSign className="w-5 h-5" /></div>
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em]">Condición de Pago</h4>
-                    </div>
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden" autoComplete="off">
+        
+        {/* 2. HEADER INFO BAR - Two columns compact */}
+        <div className="grid grid-cols-12 gap-3 shrink-0 px-1">
+          {/* Section 1: General Data */}
+          <div className="col-span-12 lg:col-span-8 bg-card border border-border rounded-xl p-3 shadow-sm grid grid-cols-12 gap-3 relative mt-2">
+            <div className="absolute -top-2.5 left-4 px-3 py-1 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg leading-none shadow-md z-10 border border-orange-700">
+              I. INFORMACIÓN DEL PROVEEDOR / SEDE
+            </div>
+            
+            <div className="col-span-12 sm:col-span-2 space-y-1 min-w-0">
+              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1">Comprobante</label>
+              <div className="relative max-w-full">
+                <select name="documentType" value={formData.documentType} onChange={handleHeaderChange} className="w-full max-w-[9.5rem] sm:max-w-none h-9 pl-2 pr-7 bg-background border border-border rounded-lg text-[11px] font-black text-foreground appearance-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 transition-all outline-none">
+                  <option value="01">01 - FACTURA</option>
+                  <option value="03">03 - BOLETA</option>
+                  <option value="NA">-- NO APLICA --</option>
+                </select>
+                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40 pointer-events-none" />
+              </div>
+            </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.1em] ml-1">Método</label>
-                            <select name="wayPay" value={formData.wayPay} onChange={handleHeaderChange} className="w-full px-4 py-4 bg-foreground/[0.03] border border-border rounded-2xl text-[12px] font-black focus:ring-4 focus:ring-orange-600/10 transition-all appearance-none cursor-pointer">
-                                {resourcesData?.wayPays.map(wp => <option key={wp.id} value={wp.id}>{wp.label}</option>)}
-                            </select>
-                        </div>
-                        <Autocomplete
-                            label="Caja o Banco"
-                            options={filteredCashes.map(c => ({ id: c.id, label: `${c.name} (${c.currencyDescription})` }))}
-                            value={formData.cashId}
-                            onChange={(val) => setFormData(prev => ({ ...prev, cashId: String(val) }))}
-                            placeholder="Seleccione..."
-                            icon={<Hash className="w-4 h-4" />}
-                            disabled={!formData.subsidiaryId}
-                        />
-                    </div>
+            <div className="col-span-12 sm:col-span-3 grid grid-cols-2 gap-2 min-w-0">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1">Serie</label>
+                <input type="text" name="serial" value={formData.serial} onChange={handleHeaderChange} placeholder="F001" className="w-full h-9 px-3 bg-background border border-border rounded-lg text-xs font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none uppercase" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1">Corr.</label>
+                <input type="number" name="correlative" value={formData.correlative || ""} onChange={handleHeaderChange} placeholder="1" className="w-full h-9 px-3 bg-background border border-border rounded-lg text-xs font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" />
+              </div>
+            </div>
 
-                    {formData.wayPay === "9" && (
-                        <div className="bg-foreground/[0.02] border border-border/50 rounded-3xl p-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Cronograma de Cuotas</span>
-                                <button type="button" onClick={addQuota} className="px-4 py-2 bg-orange-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-orange-500 transition-all flex items-center gap-2">
-                                    <Plus className="w-3.5 h-3.5" /> Agregar Cuota
-                                </button>
-                            </div>
-                            <div className="max-h-52 overflow-y-auto custom-scrollbar">
-                                <table className="w-full text-left">
-                                    <thead className="border-b border-border/50">
-                                        <tr>
-                                            <th className="py-3 text-[9px] font-black text-foreground/30 px-2 uppercase">#</th>
-                                            <th className="py-3 text-[9px] font-black text-foreground/30 uppercase">Vencimiento</th>
-                                            <th className="py-3 text-[9px] font-black text-foreground/30 uppercase text-right pr-2">Importe</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/30">
-                                        {quotas.map((q, i) => (
-                                            <tr key={i} className="group/q">
-                                                <td className="py-3 px-2 text-[10px] font-black opacity-30">{i+1}</td>
-                                                <td><input type="date" value={q.paymentDate} onChange={(e) => {
-                                                    const nq = [...quotas]; nq[i].paymentDate = e.target.value; setQuotas(nq);
-                                                }} className="bg-transparent border-none text-[12px] font-black focus:ring-0 p-0" /></td>
-                                                <td><input type="number" value={q.total} onChange={(e) => {
-                                                    const nq = [...quotas]; nq[i].total = parseFloat(e.target.value) || 0; setQuotas(nq);
-                                                }} className="w-full bg-transparent border-none text-[12px] font-black text-right pr-2 focus:ring-0 p-0" /></td>
-                                                <td className="text-right"><button onClick={() => setQuotas(quotas.filter((_, idx)=>idx!==i))} className="p-1 hover:text-red-500 opacity-0 group-hover/q:opacity-100"><Trash2 className="w-3.5 h-3.5" /></button></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-                </div>
+            <div className="col-span-12 sm:col-span-7 space-y-1 min-w-0">
+              <Autocomplete
+                label="Proveedor *"
+                options={resourcesData?.suppliers.map(s => ({ id: s.id, label: `${s.names} (${s.documentNumber})` })) || []}
+                value={formData.supplierId}
+                onChange={(val) => setFormData(prev => ({ ...prev, supplierId: String(val) }))}
+                placeholder="RUC o Razón Social..."
+                icon={<Truck className="w-3.5 h-3.5 text-orange-600" />}
+                compact
+              />
+            </div>
 
-                <div className="flex flex-col items-end justify-center">
-                    <div className="w-full max-w-md bg-foreground/[0.03] border border-border p-8 rounded-[2rem] space-y-4 shadow-sm">
-                        <div className="flex justify-between items-center px-2 gap-4">
-                            <span className="text-[11px] font-black text-foreground/30 uppercase tracking-[0.2em] whitespace-nowrap">Subtotal Bruto</span>
-                            <span className="text-[14px] font-bold text-foreground whitespace-nowrap">{formData.currencyType === 'PEN' ? 'S/' : '$'} {totals.totalTaxed.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center px-2 gap-4">
-                            <span className="text-[11px] font-black text-foreground/30 uppercase tracking-[0.2em] whitespace-nowrap">IGV Propio (18%)</span>
-                            <span className="text-[14px] font-bold text-foreground whitespace-nowrap">{formData.currencyType === 'PEN' ? 'S/' : '$'} {totals.totalIgv.toFixed(2)}</span>
-                        </div>
-                        <div className="h-px bg-orange-600/20 my-2" />
-                        <div className="flex justify-between items-center px-2 gap-4">
-                            <span className="text-[12px] font-black text-orange-600 uppercase tracking-[0.3em] whitespace-nowrap">Total a Pagar</span>
-                            <div className="text-right">
-                                <span className="text-4xl font-black text-orange-600 whitespace-nowrap">{formData.currencyType === 'PEN' ? 'S/' : '$'} {totals.totalAmount.toFixed(2)}</span>
-                                <p className="text-[9px] font-black text-orange-600/30 uppercase tracking-widest -mt-1">Moneda del Documento</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-             </div>
-        </div>
+            <div className="col-span-12 sm:col-span-6 space-y-1 min-w-0">
+              <Autocomplete
+                label="Almacén de Destino *"
+                options={filteredWarehouses.map(w => ({ id: w.id, label: w.name }))}
+                value={formData.warehouseId}
+                onChange={(val) => setFormData(prev => ({ ...prev, warehouseId: String(val) }))}
+                placeholder="Sede / Almacén..."
+                icon={<WarehouseIcon className="w-3.5 h-3.5 text-blue-600" />}
+                disabled={!formData.subsidiaryId}
+                compact
+              />
+            </div>
 
-        {/* Messaging & Actions */}
-        {(error || success) && (
-          <div className={`p-8 rounded-[2.5rem] flex items-center gap-6 animate-in slide-in-from-bottom-4 duration-500 shadow-sm border ${
-            error ? 'bg-red-500/10 border-red-500/20 text-red-600' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
-          }`}>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${error ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
-              {error ? <AlertCircle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+            <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
+               <Autocomplete
+                  label="Sucursal *"
+                  options={resourcesData?.subsidiaries.map(s => ({ id: s.id, label: s.name })) || []}
+                  value={formData.subsidiaryId}
+                  onChange={(val) => setFormData(prev => ({ ...prev, subsidiaryId: String(val), warehouseId: "" }))}
+                  placeholder="Sede..."
+                  icon={<Construction className="w-3.5 h-3.5 text-foreground/55" />}
+                  compact
+               />
+            </div>
+
+            <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
+              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1">Responsable</label>
+              <div className="relative">
+                <select name="userId" value={formData.userId} onChange={handleHeaderChange} className="w-full h-9 pl-8 pr-3 bg-background border border-border rounded-lg text-xs font-black text-foreground appearance-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 transition-all outline-none">
+                  <option value="">Seleccione...</option>
+                  {resourcesData?.users.map(u => <option key={u.id} value={u.id}>{u.username.toUpperCase()}</option>)}
+                </select>
+                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40" />
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Dates & Params */}
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-xl p-3 shadow-sm grid grid-cols-2 gap-3 relative mt-2">
+            <div className="absolute -top-2.5 left-4 px-3 py-1 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg leading-none shadow-md z-10 border border-orange-700">
+              II. CRONOLOGÍA INDUSTRIAL
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1 flex items-center gap-1"><Calendar className="w-3 h-3"/> Emisión</label>
+              <input type="date" name="emitDate" value={formData.emitDate} onChange={handleHeaderChange} className="w-full h-8 px-2 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" />
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-50">{error ? 'Error de Validación' : 'Operación Finalizada'}</p>
-              <p className="text-[14px] font-black uppercase tracking-tight">{error || success}</p>
+              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1 flex items-center gap-1"><Clock className="w-3 h-3"/> Vencimiento</label>
+              <input type="date" name="dueDate" value={formData.dueDate} onChange={handleHeaderChange} className="w-full h-8 px-2 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" />
+            </div>
+
+            <div className="col-span-2 gap-3 flex items-end">
+               <div className="flex-1 space-y-1">
+                  <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1 flex items-center gap-1"><DollarSign className="w-3 h-3"/> Moneda</label>
+                  <div className="flex bg-foreground/[0.06] dark:bg-foreground/[0.08] rounded-lg p-0.5 border border-border">
+                    <button type="button" onClick={() => setFormData(p => ({...p, currencyType: 'PEN'}))} className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${formData.currencyType === 'PEN' ? 'bg-card shadow-sm text-orange-600 ring-1 ring-border' : 'text-foreground/45 hover:text-foreground/70'}`}>SOLES</button>
+                    <button type="button" onClick={() => setFormData(p => ({...p, currencyType: 'USD'}))} className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${formData.currencyType === 'USD' ? 'bg-card shadow-sm text-orange-600 ring-1 ring-border' : 'text-foreground/45 hover:text-foreground/70'}`}>DÓLARES</button>
+                  </div>
+               </div>
+               <div className="flex-1 space-y-1">
+                  <label className="text-[9px] font-black text-foreground/50 uppercase ml-1">Observación</label>
+                  <input type="text" name="observation" value={formData.observation} onChange={handleHeaderChange} className="w-full h-9 px-3 bg-background border border-border rounded-lg text-[10px] font-bold text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" placeholder="..." />
+               </div>
             </div>
           </div>
-        )}
-
-        <div className="flex justify-end items-center gap-6 pt-6 mb-20">
-            <button type="button" onClick={resetForm} className="px-10 py-5 rounded-2xl text-[11px] font-black text-foreground/20 uppercase tracking-[0.3em] hover:text-foreground/50 transition-all">Limpiar</button>
-            <button type="submit" disabled={creating} className="px-12 py-5 bg-orange-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.25em] shadow-2xl shadow-orange-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-4">
-                {creating ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>Procesar Compra <ArrowRight className="w-5 h-5" /></>}
-            </button>
         </div>
+
+        {/* 3. MAIN TABLE AREA - Full height stretching */}
+        <div className="flex-1 min-h-0 max-h-[min(50vh,calc(100vh-15rem))] bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col mx-1">
+          <div className="px-3 py-2 bg-background border-b border-border flex items-center justify-between shrink-0">
+             <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-orange-500/15 rounded-lg text-orange-600 dark:text-orange-500">
+                  <PackageSearch className="w-4 h-4" />
+                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-foreground/65">Detalle de Artículos de Ferretería</h3>
+             </div>
+             <button type="button" onClick={() => addDetail()} className="px-3 py-1.5 bg-foreground text-background rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-foreground/90 transition-all flex items-center gap-1.5 shadow-sm">
+                <Plus className="w-3.5 h-3.5" /> Nueva Línea
+             </button>
+          </div>
+
+          <div className="flex-1 overflow-auto custom-scrollbar relative">
+             <table className="w-full border-collapse table-fixed min-w-[800px]">
+                <thead className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm border-b border-border shadow-sm">
+                   <tr>
+                      <th className="w-32 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-left border-r border-border">Código</th>
+                      <th className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-left border-r border-border">Descripción del Producto</th>
+                      <th className="w-24 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-center border-r border-border">Cantidad</th>
+                      <th className="w-32 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-right border-r border-border">P. Unitario</th>
+                      <th className="w-24 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-right border-r border-border">Dscto</th>
+                      <th className="w-32 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-right border-r border-border">Monto Total</th>
+                      <th className="w-16 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-foreground/50 text-center">Opt</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                   {details.map((item, idx) => (
+                      <tr key={item.id} className={`group hover:bg-orange-500/10 dark:hover:bg-orange-500/15 transition-colors border-b border-border last:border-0 ${idx % 2 === 0 ? 'bg-card' : 'bg-foreground/[0.03]'}`}>
+                         <td className="px-3 py-0 border-r border-border">
+                            <div className="text-[9px] font-black text-foreground/45 font-mono tracking-tighter uppercase">{item.productCode || '---'}</div>
+                         </td>
+                         <td className="px-1 py-0 border-r border-border">
+                            <Autocomplete
+                               options={productsData?.products.map(p => ({ id: String(p.id), label: p.code ? `[${p.code}] ${p.name}` : p.name })) || []}
+                               value={item.productId}
+                               onChange={(val) => selectProductForDetail(item.id, val)}
+                               placeholder="Escanee o busque producto..."
+                               hideLabel
+                               isGrid
+                               minSearchLength={3}
+                               compact
+                            />
+                         </td>
+                         <td className="px-1 py-0 border-r border-border">
+                            <input 
+                              type="number" 
+                              value={item.quantity} 
+                              onChange={(e) => updateDetail(item.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                              className="w-full h-7 bg-transparent text-[10px] font-black text-center text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-orange-500 rounded px-1 transition-all" 
+                            />
+                         </td>
+                         <td className="px-1 py-0 border-r border-border">
+                            <div className="relative flex items-center pr-1">
+                               <span className="text-[8px] text-foreground/30 font-black absolute left-2">{formData.currencyType === 'PEN' ? 'S/' : '$'}</span>
+                               <input 
+                                 type="number" 
+                                 step="0.01" 
+                                 value={item.unitPrice} 
+                                 onChange={(e) => updateDetail(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} 
+                                 className="w-full h-7 bg-transparent text-[10px] font-black text-right text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-orange-500 rounded pl-6 transition-all" 
+                               />
+                            </div>
+                         </td>
+                         <td className="px-1 py-0 border-r border-border">
+                            <input 
+                              type="number" 
+                              step="0.01" 
+                              value={item.discount} 
+                              onChange={(e) => updateDetail(item.id, 'discount', parseFloat(e.target.value) || 0)} 
+                              className="w-full h-7 bg-transparent text-[10px] font-black text-right text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-orange-500 rounded px-1 transition-all" 
+                            />
+                         </td>
+                         <td className="px-3 py-0 border-r border-border bg-foreground/[0.04]">
+                            <div className="text-[10px] font-black text-right text-foreground font-mono tracking-tighter">
+                              {item.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                         </td>
+                         <td className="px-1 py-0 flex items-center justify-center gap-1">
+                            <button type="button" onClick={() => removeDetail(item.id)} className="p-1 text-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded transition-all">
+                               <Trash2 className="w-3 h-3" />
+                            </button>
+                         </td>
+                      </tr>
+                   ))}
+                   {/* Ghost Row for easy add */}
+                   <tr className="border-t-2 border-border">
+                      <td colSpan={7} className="p-0">
+                         <button type="button" onClick={() => addDetail()} className="w-full py-2 flex items-center justify-center gap-2 text-[10px] font-black text-foreground/45 hover:text-orange-600 hover:bg-orange-500/10 transition-all uppercase tracking-widest group">
+                            <Plus className="w-3 h-3 group-hover:scale-125 transition-transform" /> Click aquí para añadir otro item
+                         </button>
+                      </td>
+                   </tr>
+                </tbody>
+             </table>
+          </div>
+        </div>
+
+        {/* 4. FOOTER & SETTLEMENT - Compact bar */}
+        <div className="bg-card text-foreground rounded-xl p-3 shadow-lg border border-border border-t-4 border-t-orange-600 shrink-0 grid grid-cols-12 gap-4 mx-1">
+           
+           {/* Payment Method Section */}
+           <div className="col-span-12 lg:col-span-5 flex items-center gap-4 border-r border-border pr-4 relative">
+              <div className="flex-1 space-y-1">
+                 <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest ml-1">Método de Pago</label>
+                 <select name="wayPay" value={formData.wayPay} onChange={handleHeaderChange} className="w-full h-9 bg-background border border-border rounded-lg text-xs font-black text-foreground px-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none appearance-none">
+                    {resourcesData?.wayPays.map(wp => <option key={wp.id} value={wp.id}>{wp.label}</option>)}
+                 </select>
+              </div>
+              <div className="flex-[2] space-y-1">
+                 <Autocomplete
+                   label="Caja o Banco de Origen"
+                   options={filteredCashes.map(c => ({ id: c.id, label: `${c.name} (${c.currencyDescription})` }))}
+                   value={formData.cashId}
+                   onChange={(val) => setFormData(prev => ({ ...prev, cashId: String(val) }))}
+                   placeholder="Canal de fondos..."
+                   icon={<Hash className="w-3.5 h-3.5 text-orange-500" />}
+                   disabled={!formData.subsidiaryId}
+                   compact
+                 />
+              </div>
+              
+              {formData.wayPay === "9" && (
+                <div className="flex flex-col gap-1 items-center">
+                  <label className="text-[8px] font-black text-orange-600 dark:text-orange-500 uppercase tracking-tighter">Cronograma</label>
+                  <button type="button" onClick={addQuota} className="h-8 w-8 bg-orange-600 hover:bg-orange-500 text-white rounded-lg flex items-center justify-center transition-all shadow-lg shadow-orange-900/40">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Float Quotas List when active */}
+              {formData.wayPay === "9" && quotas.length > 0 && (
+                <div className="absolute bottom-full left-0 w-64 bg-card border border-border rounded-xl shadow-2xl p-2 mb-2 animate-in slide-in-from-bottom-2 duration-300">
+                   <div className="flex items-center justify-between px-2 mb-2">
+                      <span className="text-[9px] font-black text-orange-600 dark:text-orange-500 uppercase tracking-widest">Cuotas Recogidas</span>
+                      <span className="text-[10px] text-muted-foreground font-bold">{quotas.length} items</span>
+                   </div>
+                   <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1 px-1">
+                      {quotas.map((q, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-muted/50 p-1.5 rounded-lg border border-border group/qu">
+                           <span className="text-[9px] font-black text-muted-foreground w-4">{i+1}</span>
+                           <input type="date" value={q.paymentDate} onChange={(e) => {
+                             const nq = [...quotas]; nq[i].paymentDate = e.target.value; setQuotas(nq);
+                           }} className="bg-transparent border-none text-[10px] font-black text-foreground focus:ring-0 p-0 w-24" />
+                           <input type="number" value={q.total} onChange={(e) => {
+                             const nq = [...quotas]; nq[i].total = parseFloat(e.target.value) || 0; setQuotas(nq);
+                           }} className="bg-transparent border-none text-[10px] font-black text-orange-600 dark:text-orange-500 text-right focus:ring-0 p-0 flex-1 min-w-0" />
+                           <button type="button" onClick={() => setQuotas(quotas.filter((_, idx)=>idx!==i))} className="p-1 text-muted-foreground hover:text-red-500 opacity-0 group-hover/qu:opacity-100 transition-opacity">
+                             <Trash2 className="w-3 h-3" />
+                           </button>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              )}
+           </div>
+
+           {/* Totals Summary */}
+           <div className="col-span-12 lg:col-span-4 flex items-center justify-around gap-2 px-2 border-r border-border text-foreground font-mono">
+              <div className="text-center">
+                 <p className="text-[8px] font-black text-muted-foreground uppercase">Subtotal</p>
+                 <p className="text-[10px] font-bold">{(totals.totalTaxed).toFixed(2)}</p>
+              </div>
+              <div className="text-center">
+                 <p className="text-[8px] font-black text-muted-foreground uppercase">IGV 18%</p>
+                 <p className="text-[10px] font-bold">{(totals.totalIgv).toFixed(2)}</p>
+              </div>
+              <div className="text-center bg-muted/50 px-3 py-1 rounded-lg border border-border">
+                 <p className="text-[8px] font-black text-orange-600 dark:text-orange-500 uppercase">Total Neto</p>
+                 <p className="text-lg font-black text-orange-600 dark:text-orange-500 tracking-tighter">
+                   {formData.currencyType === 'PEN' ? 'S/' : '$'} {totals.totalAmount.toFixed(2)}
+                 </p>
+              </div>
+           </div>
+
+           {/* Actions */}
+           <div className="col-span-12 lg:col-span-3 flex items-center justify-end gap-3">
+              <button type="button" onClick={resetForm} className="h-9 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-all">
+                BORRAR
+              </button>
+              <button type="submit" disabled={creating} className="h-10 px-6 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-black text-[11px] uppercase tracking-widest shadow-lg shadow-orange-900/40 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50">
+                 {creating ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>PROCESAR COMPRA <ArrowRight className="w-3.5 h-3.5" /></>}
+              </button>
+           </div>
+        </div>
+
+        {/* 5. FLOATING MESSAGES */}
+        {(error || success) && (
+          <div className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 shadow-2xl border-l-4 ${
+            error ? 'bg-white border-red-500' : 'bg-white border-emerald-500'
+          }`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${error ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              {error ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+            </div>
+            <div className="pr-4">
+              <p className="text-[9px] font-black uppercase text-slate-400">{error ? 'Error Detectado' : 'Registro Exitoso'}</p>
+              <p className="text-xs font-black text-slate-800">{error || success}</p>
+            </div>
+            <button onClick={() => {setError(""); setSuccess("");}} className="text-slate-300 hover:text-slate-500"><Plus className="w-4 h-4 rotate-45" /></button>
+          </div>
+        )}
       </form>
+
+      {/* Internal Scroll Style */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
+
     </div>
   );
 }

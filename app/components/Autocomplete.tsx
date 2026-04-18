@@ -21,6 +21,10 @@ interface AutocompleteProps {
   hideLabel?: boolean;
   disabled?: boolean;
   isGrid?: boolean;
+  /** Compact mode for tighter layouts */
+  compact?: boolean;
+  /** Dark mode for backgrounds like headers/footers */
+  dark?: boolean;
   /** Mínimo de caracteres para mostrar resultados (ej: 3 = buscar al escribir 3+ letras) */
   minSearchLength?: number;
 }
@@ -37,6 +41,8 @@ export default function Autocomplete({
   hideLabel,
   disabled,
   isGrid,
+  compact,
+  dark,
   minSearchLength = 0
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -70,7 +76,7 @@ export default function Autocomplete({
 
   // Solo sincronizar searchTerm cuando el input NO tiene foco (usuario no está escribiendo)
   useEffect(() => {
-    const isFocused = document.activeElement === inputRef.current;
+    const isFocused = typeof document !== 'undefined' && document.activeElement === inputRef.current;
     if (!isFocused) {
       if (selectedOption) {
         setSearchTerm(selectedOption.label);
@@ -168,19 +174,33 @@ export default function Autocomplete({
     }
   };
 
+  const inputClasses = useMemo(() => {
+    if (isGrid) {
+      return `w-full h-full pl-11 pr-10 py-1 bg-transparent border-none text-[11px] font-black focus:bg-background focus:ring-0 outline-none rounded-none text-foreground transition-all`;
+    }
+    
+    const base = "w-full focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600 transition-all select-all outline-none";
+    const padding = compact ? "pl-9 pr-8 h-9" : "pl-11 pr-10 py-3.5";
+    const rounded = compact ? "rounded-lg" : "rounded-2xl";
+    const text = compact ? "text-[11px] font-black uppercase" : "text-[12px] font-bold";
+    const bg = dark ? "bg-slate-900 border-slate-600 text-white" : "bg-foreground/[0.02] border border-border text-foreground";
+    
+    return `${base} ${padding} ${rounded} ${text} ${bg}`;
+  }, [isGrid, compact, dark]);
+
   return (
     <div 
       className={`relative inline-block w-full ${disabled ? 'opacity-50 pointer-events-none' : ''}`} 
       ref={containerRef}
     >
       {label && !hideLabel && (
-        <label className="block mb-1.5 text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">
+        <label className={`block mb-1.5 font-black uppercase tracking-widest ml-1 ${compact ? 'text-[9px] text-slate-400' : 'text-[10px] text-foreground/40'}`}>
           {label} {required && <span className="text-orange-600">*</span>}
         </label>
       )}
       
       <div className="relative group">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30 pointer-events-none group-focus-within:text-orange-600 z-10">
+        <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/30 pointer-events-none group-focus-within:text-orange-600 z-10 ${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`}>
           {icon || <Search className="w-full h-full" />}
         </div>
         
@@ -197,11 +217,7 @@ export default function Autocomplete({
           autoComplete="off"
           disabled={disabled}
           placeholder={placeholder}
-          className={`${
-            isGrid 
-            ? 'w-full h-full pl-11 pr-10 py-4 bg-transparent border-none text-[12px] font-black focus:bg-white focus:ring-0 outline-none rounded-none' 
-            : 'w-full pl-11 pr-10 py-3.5 bg-foreground/[0.02] border border-border rounded-2xl text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600'
-          } placeholder:text-foreground/30 transition-all select-all`}
+          className={inputClasses}
         />
 
         <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10 transition-opacity duration-300 pointer-events-none [&>button]:pointer-events-auto">

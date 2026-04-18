@@ -14,6 +14,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const isLoginPage = pathname === '/' || pathname === '/login';
   const isPureDisplayPage = pathname.startsWith('/modules/sales/display');
   const isSalesPage = pathname === '/modules/sales/new_sale';
+  const isPosCashPage = pathname === '/modules/cash/pos_cash';
+  const isPurchasesPage = pathname === '/modules/purchases';
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   if (isLoginPage || isPureDisplayPage) {
     return (
@@ -43,21 +47,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <ApolloWrapper>
           <div className="flex h-screen bg-background transition-colors duration-300 overflow-hidden">
             {/* Sidebar */}
-            <Sidebar />
+            <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
 
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
               {/* Navbar */}
-              <Navbar />
+              <Navbar 
+                isSidebarCollapsed={isSidebarCollapsed} 
+                onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              />
 
               {/* Main scrollable area */}
-              <main className="flex-1 overflow-y-auto pt-16 sm:pl-64 flex flex-col">
+              <main className={`flex-1 overflow-y-auto pt-16 transition-all duration-300 ${isSidebarCollapsed ? 'sm:pl-20' : 'sm:pl-64'} flex flex-col`}>
                 <div className="p-2 sm:p-3 flex-1">
-                  <div className={isSalesPage ? "h-full" : "min-h-[calc(100vh-64px-140px)]"}>
+                  <div className={(isSalesPage || isPosCashPage || isPurchasesPage) ? "h-full" : "min-h-[calc(100vh-64px-140px)]"}>
                     {children}
                   </div>
                 </div>
                 
-                {!isSalesPage && <Footer />}
+                {!(isSalesPage || isPosCashPage || isPurchasesPage) && <Footer />}
               </main>
             </div>
           </div>
