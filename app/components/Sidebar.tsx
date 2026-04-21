@@ -43,7 +43,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [isCashOpen, setIsCashOpen] = useState(pathname.startsWith('/modules/cash/pos_cash'));
   const [isFinanceOpen, setIsFinanceOpen] = useState(pathname.startsWith('/modules/cash') && !pathname.startsWith('/modules/cash/pos_cash') || pathname.startsWith('/modules/cashflow'));
   const [isConfigOpen, setIsConfigOpen] = useState(pathname.startsWith('/modules/users') || pathname.startsWith('/modules/subsidiary'));
-  const [isPosOpen, setIsPosOpen] = useState(pathname.startsWith('/modules/sales/new_sale') || pathname.startsWith('/modules/sales/display'));
+  const [isPosOpen, setIsPosOpen] = useState(pathname.startsWith('/modules/sales/new_sale') || pathname.startsWith('/modules/sales/display') || pathname.startsWith('/modules/sales/sales_list'));
 
   const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
@@ -56,6 +56,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       subItems: [
         { label: 'Nueva Venta', icon: Plus, href: '/modules/sales/new_sale' },
         { label: 'Monitor', icon: Monitor, href: '/modules/sales/display' },
+        { label: 'Historial', icon: History, href: '/modules/sales/sales_list' },
+
       ]
     },
     { 
@@ -79,7 +81,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         { label: 'Flujo', icon: BarChart3, href: '/modules/cashflow' },
       ]
     },
-    { label: 'Historial', icon: History, href: '/sales-history' },
+
     { 
       label: 'Inventario', 
       icon: Package, 
@@ -129,7 +131,20 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   ];
 
   return (
-    <aside className={`fixed left-0 top-0 z-40 h-screen border-r border-border bg-card/60 backdrop-blur-2xl transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
+    <>
+      {/* Mobile Backdrop */}
+      {!isCollapsed && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 sm:hidden" 
+          onClick={onToggle}
+        />
+      )}
+
+      <aside className={`fixed left-0 top-0 z-50 h-screen border-r border-border bg-card/60 backdrop-blur-2xl transition-all duration-300 ease-in-out ${
+        isCollapsed 
+          ? '-translate-x-full sm:translate-x-0 sm:w-20' 
+          : 'translate-x-0 w-64 shadow-2xl sm:shadow-none'
+      }`}>
       <div className={`h-full flex flex-col ${isCollapsed ? 'px-2' : 'px-4'} py-6 overflow-y-auto no-scrollbar`}>
         
         {/* Brand Logo */}
@@ -257,6 +272,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </Link>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

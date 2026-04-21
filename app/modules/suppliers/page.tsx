@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { gql } from "@apollo/client";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { 
@@ -12,17 +12,17 @@ import {
   Mail, 
   FileText, 
   Globe, 
-  Info, 
-  AlertCircle, 
-  CheckCircle2, 
-  MoreVertical,
-  Filter,
-  User,
+  Trash2,
+  Pencil,
   ArrowRight,
   ChevronDown,
-  Pencil
+  Building2,
+  BadgeInfo,
+  Save,
+  Eraser,
+  RefreshCcw,
+  LayoutGrid
 } from "lucide-react";
-import Modal from "@/app/components/Modal";
 import Autocomplete from "@/app/components/Autocomplete";
 
 // --- GraphQL Operations ---
@@ -163,13 +163,12 @@ interface UpdateSupplierData {
 const DOCUMENT_TYPES = [
   { id: '1', label: 'DNI' },
   { id: '6', label: 'RUC' },
-  { id: '4', label: 'CARNET DE EXTRANJERÍA' },
+  { id: '4', label: 'C.E.' },
   { id: '7', label: 'PASAPORTE' },
-  { id: '0', label: 'SIN DOCUMENTO' },
+  { id: '0', label: 'S/D' },
 ];
 
 export default function SuppliersPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -198,42 +197,34 @@ export default function SuppliersPage() {
   const suppliers = suppliersData?.suppliers ?? [];
 
   const [createSupplier, { loading: creating }] = useMutation<CreateSupplierData>(CREATE_SUPPLIER_MUTATION, {
-    onCompleted: (data) => {
-      handleMutationCompleted(data?.createSupplier);
-    },
+    onCompleted: (data) => handleMutationCompleted(data?.createSupplier),
     onError: (err) => setError(err.message),
   });
 
   const [updateSupplier, { loading: updating }] = useMutation<UpdateSupplierData>(UPDATE_SUPPLIER_MUTATION, {
-    onCompleted: (data) => {
-      handleMutationCompleted(data?.updateSupplier);
-    },
+    onCompleted: (data) => handleMutationCompleted(data?.updateSupplier),
     onError: (err) => setError(err.message),
   });
 
   const handleMutationCompleted = (response?: MutationResponse) => {
     if (response?.success) {
       setSuccess(response.message);
-      setFormData(initialFormState);
+      resetForm();
       refetchSuppliers();
-      setTimeout(() => {
-        closeModal();
-      }, 1500);
+      setTimeout(() => setSuccess(""), 3000);
     } else {
       setError(response?.message || "Error en la operación");
     }
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
+  const resetForm = () => {
     setIsEditing(false);
     setSelectedSupplierId(null);
     setFormData(initialFormState);
     setError("");
-    setSuccess("");
   };
 
-  const openEditModal = (supplier: Supplier) => {
+  const selectForEdit = (supplier: Supplier) => {
     setIsEditing(true);
     setSelectedSupplierId(supplier.id);
     setFormData({
@@ -248,13 +239,13 @@ export default function SuppliersPage() {
       districtId: supplier.districtId || "",
       observation: supplier.observation || "",
     });
-    setIsModalOpen(true);
+    setError("");
+    setSuccess("");
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError("");
-    setSuccess("");
+    if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -273,404 +264,324 @@ export default function SuppliersPage() {
 
     if (isEditing && selectedSupplierId) {
       await updateSupplier({
-        variables: {
-          id: selectedSupplierId,
-          ...variables,
-        },
+        variables: { id: selectedSupplierId, ...variables },
       });
     } else {
-      await createSupplier({
-        variables,
-      });
+      await createSupplier({ variables });
     }
   };
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.names.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.documentNumber.includes(searchTerm)
-  );
+  const filteredSuppliers = useMemo(() => {
+    return suppliers.filter(s => 
+      s.names.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.documentNumber.includes(searchTerm)
+    );
+  }, [suppliers, searchTerm]);
 
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-500 transition-colors duration-300 -mt-2">
-      {/* Premium Industrial Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-card px-8 py-8 shadow-sm border border-border group transition-all duration-500">
-        <div className="absolute top-0 right-0 -m-8 w-64 h-64 bg-orange-600/5 dark:bg-orange-600/10 rounded-full blur-3xl group-hover:bg-orange-600/10 transition-all duration-700"></div>
-        <div className="absolute bottom-0 left-0 -m-8 w-48 h-48 bg-foreground/5 dark:bg-slate-500/5 rounded-full blur-2xl"></div>
-        
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="flex items-center gap-6">
-            <div className="hidden sm:flex w-14 h-14 rounded-2xl bg-orange-600 items-center justify-center text-white shadow-[0_0_30px_rgba(234,88,12,0.2)] animate-pulse-slow">
-              <Briefcase className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-orange-600 rounded-full animate-ping"></span>
-                <h1 className="text-2xl font-black tracking-tight flex items-center gap-3 decoration-orange-600">
-                  MAESTRO DE <span className="text-orange-600">PROVEEDORES</span>
-                </h1>
-              </div>
-              <p className="text-foreground/50 dark:text-slate-400 text-[10px] uppercase tracking-[0.3em] ml-1">
-                Administración centralizada de socios comerciales
-              </p>
-            </div>
+    <div className="h-full flex flex-col gap-2 overflow-hidden bg-background text-foreground animate-in fade-in duration-500">
+      
+      {/* --- INDUSTRIAL TOP BAR --- */}
+      <div className="flex items-center justify-between bg-card p-2 px-4 rounded-xl border border-border shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-600/20">
+            <Building2 className="w-5 h-5" />
           </div>
-          
-          <button
-            onClick={() => {
-              setIsEditing(false);
-              setFormData(initialFormState);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-3 px-6 py-4 bg-orange-600 text-white rounded-2xl font-black text-[11px] shadow-xl shadow-orange-600/20 hover:bg-orange-500 hover:scale-[1.02] active:scale-[0.98] transition-all group shrink-0 uppercase tracking-widest"
-          >
-            <div className="w-5 h-5 rounded-lg bg-white/20 text-white flex items-center justify-center group-hover:rotate-180 transition-transform duration-500">
-              <Plus className="w-3.5 h-3.5" />
-            </div>
-            REGISTRAR PROVEEDOR
-          </button>
-        </div>
-      </div>
-
-      {/* Advanced Search Area */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <div className="md:col-span-10 relative group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="w-4 h-4 text-foreground/40 group-focus-within:text-orange-600 transition-colors" />
+          <div>
+            <h1 className="text-sm font-black uppercase tracking-tighter leading-tight italic">
+              MAESTRO DE <span className="text-orange-600">PROVEEDORES</span>
+            </h1>
+            <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Panel Central de Operaciones</p>
           </div>
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, código o documento..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-2xl text-[12px] font-bold text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600 transition-all shadow-sm"
-          />
         </div>
-        <div className="md:col-span-2">
-          <button className="w-full h-full flex items-center justify-center gap-2 px-4 py-4 bg-card border border-border rounded-2xl text-foreground/60 font-black text-[11px] hover:bg-foreground/5 transition-colors uppercase tracking-[0.1em]">
-            <Filter className="w-4 h-4" />
-            Filtros
-          </button>
-        </div>
-      </div>
 
-      {/* Grid Display (Innovative Table) */}
-      <div className="bg-card border border-border rounded-[2rem] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-foreground/[0.02]">
-                <th className="px-6 py-5 text-[9px] font-black uppercase tracking-[0.25em] text-foreground/40">Proveedor</th>
-                <th className="px-6 py-5 text-[9px] font-black uppercase tracking-[0.25em] text-foreground/40">Identificación</th>
-                <th className="px-6 py-5 text-[9px] font-black uppercase tracking-[0.25em] text-foreground/40">Ubicación</th>
-                <th className="px-6 py-5 text-[9px] font-black uppercase tracking-[0.25em] text-foreground/40">Contacto</th>
-                <th className="px-6 py-5 text-[9px] font-black uppercase tracking-[0.25em] text-foreground/40 text-center">Gestión</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {loadingSuppliers ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td colSpan={5} className="px-6 py-6">
-                      <div className="h-8 bg-foreground/5 rounded-lg w-full" />
-                    </td>
-                  </tr>
-                ))
-              ) : filteredSuppliers.length > 0 ? (
-                filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="group hover:bg-foreground/[0.01] transition-all duration-300 cursor-pointer">
-                    <td className="px-6 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-2xl bg-card border-2 border-border flex items-center justify-center text-foreground/40 transition-all group-hover:bg-orange-600 group-hover:text-white group-hover:border-orange-600">
-                            <Briefcase className="w-6 h-6" />
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-black text-foreground leading-tight group-hover:text-orange-600 transition-colors">
-                            {supplier.names}
-                          </span>
-                          <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest mt-0.5">
-                            Socio Comercial
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="px-2 py-0.5 bg-foreground/5 rounded-md border border-border/50 w-fit">
-                          <span className="text-[11px] font-black text-foreground/60">
-                            {DOCUMENT_TYPES.find(t => t.id === supplier.documentType)?.label || 'DNI'}
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-bold text-foreground/40">{supplier.documentNumber}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5 text-foreground/60">
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="w-3 h-3 text-orange-600/60" />
-                          <span className="text-[12px] font-bold truncate max-w-[180px]">{supplier.address || "Sin dirección"}</span>
-                        </div>
-                        <span className="text-[10px] font-semibold text-foreground/30 ml-4.5">{supplier.districtName || "-"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1.5">
-                        {supplier.phone && (
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-foreground/50">
-                            <Phone className="w-3 h-3" />
-                            {supplier.phone}
-                          </div>
-                        )}
-                        {supplier.email && (
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-foreground/50">
-                            <Mail className="w-3 h-3" />
-                            {supplier.email}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-6 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => openEditModal(supplier)}
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-card text-foreground/30 border border-border hover:bg-orange-600 hover:text-white hover:border-orange-600 active:scale-90 transition-all shadow-sm"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-card text-foreground/30 border border-border hover:bg-foreground/5 active:scale-90 transition-all shadow-sm">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
-                    <div className="flex flex-col items-center gap-3 opacity-30">
-                      <Briefcase className="w-12 h-12" />
-                      <p className="font-black text-sm uppercase tracking-widest">Sin registros encontrados</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Registry/Edit Modal */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={closeModal} 
-        title={isEditing ? "Actualizar Proveedor" : "Registrar Nuevo Proveedor"}
-      >
-        <form onSubmit={handleSubmit} className="p-2 space-y-8" autoComplete="off">
-          <input type="text" style={{ display: 'none' }} name="fake-username" />
-          <input type="password" style={{ display: 'none' }} name="fake-password" />
-          
-          {/* Corporate Info Section */}
-          <div className="relative bg-foreground/[0.02] rounded-3xl p-6 border border-border">
-            <div className="absolute -top-3 left-6 px-3 bg-card border border-border rounded-full">
-              <span className="text-[9px] font-black text-foreground/40 uppercase tracking-[0.3em]">Identificación Corporativa</span>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Razón Social / Nombre Completo *</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
-                  <input
-                    type="text"
-                    name="names"
-                    required
-                    value={formData.names}
-                    onChange={handleChange}
-                    placeholder="Ej. Distribuidora Metálica S.A.C."
-                    className="w-full pl-11 pr-4 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-black text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Tipo de Documento *</label>
-                <div className="relative">
-                  <select
-                    name="documentType"
-                    value={formData.documentType}
-                    onChange={handleChange}
-                    className="w-full pl-4 pr-10 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600 appearance-none cursor-pointer"
-                  >
-                    {DOCUMENT_TYPES.map(type => (
-                      <option key={type.id} value={type.id}>{type.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/30 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Nº Documento *</label>
-                <div className="relative">
-                  <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
-                  <input
-                    type="text"
-                    name="documentNumber"
-                    required
-                    value={formData.documentNumber}
-                    onChange={handleChange}
-                    placeholder="DNI o RUC"
-                    className="w-full pl-11 pr-4 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-black text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Código Interno</label>
-                <input
-                  type="text"
-                  name="code"
-                  value={formData.code}
-                  onChange={handleChange}
-                  placeholder="Ej. PRV-001"
-                  className="w-full px-4 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">País de Origen</label>
-                <div className="relative">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
-                  <input
-                    type="text"
-                    name="country"
-                    value={formData.country}
-                    readOnly
-                    className="w-full pl-11 pr-4 py-3.5 bg-foreground/[0.03] border border-border rounded-2xl text-[12px] font-bold text-foreground/50 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Location & Contact Section */}
-          <div className="relative bg-foreground/[0.02] rounded-3xl p-6 border border-border">
-            <div className="absolute -top-3 left-6 px-3 bg-card border border-border rounded-full">
-              <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.3em]">Geolocalización y Contacto</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-              <div className="md:col-span-2">
-                <Autocomplete
-                  label="Distrito Fiscal *"
-                  options={districts.map(d => ({ id: d.id, label: d.description }))}
-                  value={formData.districtId}
-                  onChange={(val) => setFormData({ ...formData, districtId: String(val) })}
-                  placeholder="Buscar ubicación..."
-                  icon={<MapPin className="w-4 h-4" />}
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Dirección de Sede</label>
-                <input
-                  type="text"
-                  name="address"
-                  required
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="Ej. Av. Industrial 123"
-                  className="w-full px-4 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Teléfono Directo</label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
-                  <input
-                    type="text"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="999 999 999"
-                    className="w-full pl-11 pr-4 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">E-mail Corporativo</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="contacto@proveedor.com"
-                    className="w-full pl-11 pr-4 py-3.5 bg-card border border-border rounded-2xl text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground/40 uppercase tracking-widest ml-1">Notas Comerciales / Observaciones</label>
-            <textarea
-              name="observation"
-              value={formData.observation}
-              onChange={handleChange}
-              rows={3}
-              placeholder="Notas generales o acuerdos con el proveedor..."
-              className="w-full p-4 bg-foreground/[0.02] border border-border rounded-[1.5rem] text-[12px] font-bold text-foreground focus:ring-4 focus:ring-orange-600/10 focus:border-orange-600 resize-none shadow-sm"
+        <div className="flex items-center gap-2">
+          <div className="relative group overflow-hidden rounded-lg bg-foreground/[0.03] border border-border focus-within:border-orange-600 transition-all duration-300">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/30 group-focus-within:text-orange-600" />
+            <input 
+              type="text" 
+              placeholder="Filtro rápido..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64 pl-9 pr-3 py-2 bg-transparent text-[11px] font-bold focus:outline-none placeholder:text-foreground/20"
             />
           </div>
+          <button 
+            onClick={() => refetchSuppliers()}
+            className="p-2 bg-foreground/5 hover:bg-foreground/10 text-foreground rounded-lg border border-border transition-all"
+          >
+            <RefreshCcw className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-          {/* Alert Handlers */}
-          {(error || success) && (
-            <div className={`p-4 rounded-[1.5rem] flex items-center gap-4 animate-in slide-in-from-bottom-2 duration-400 ${
-              error ? 'bg-red-500/10 border border-red-500/20 text-red-600' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600'
-            }`}>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${error ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
-                {error ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-              </div>
-              <p className="text-[12px] font-black uppercase tracking-tight leading-4">{error || success}</p>
+      <div className="flex-1 flex gap-2 min-h-0">
+        
+        {/* --- LEFT: REGISTRATION FORM --- */}
+        <div className="w-[380px] bg-card rounded-xl border border-border flex flex-col shadow-lg overflow-hidden animate-in slide-in-from-left duration-500">
+          <div className="bg-orange-600 p-3 px-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-white">
+              <LayoutGrid className="w-4 h-4" />
+              <h2 className="text-[11px] font-black uppercase tracking-widest">
+                {isEditing ? 'Actualizar Ficha' : 'Nueva Ficha'}
+              </h2>
             </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="px-6 py-4 rounded-2xl text-[11px] font-black text-foreground/40 hover:text-foreground/60 hover:bg-foreground/5 transition-all uppercase tracking-[0.2em]"
-            >
-              Interrumpir
-            </button>
-            <button
-              type="submit"
-              disabled={creating || updating}
-              className="px-10 py-4 bg-orange-600 text-white rounded-2xl font-black text-[11px] shadow-xl shadow-orange-600/20 hover:scale-[1.03] active:scale-[0.97] transition-all disabled:opacity-50 disabled:grayscale uppercase tracking-[0.2em] flex items-center gap-3"
-            >
-              {(creating || updating) ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  SINCRONIZANDO...
-                </>
-              ) : (
-                <>
-                  {isEditing ? "ACTUALIZAR PROVEEDOR" : "GRABAR EN BASE"}
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+            {isEditing && (
+              <button onClick={resetForm} className="text-white/60 hover:text-white transition-colors"><Eraser className="w-4 h-4" /></button>
+            )}
           </div>
-        </form>
-      </Modal>
+
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto no-scrollbar" autoComplete="off">
+            <div className="space-y-4">
+              
+              {/* Core Info */}
+              <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Tipo Doc *</label>
+                    <div className="relative">
+                      <select
+                        name="documentType"
+                        value={formData.documentType}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none appearance-none cursor-pointer"
+                      >
+                        {DOCUMENT_TYPES.map(type => (
+                          <option key={type.id} value={type.id}>{type.label}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 opacity-30 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Nº Identidad *</label>
+                    <input
+                      name="documentNumber"
+                      required
+                      value={formData.documentNumber}
+                      onChange={handleChange}
+                      placeholder="1234567890"
+                      className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Razón Social / Nombre Representante *</label>
+                  <div className="relative group">
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/30 group-focus-within:text-orange-600" />
+                    <input
+                      name="names"
+                      required
+                      value={formData.names}
+                      onChange={handleChange}
+                      placeholder="Nombre comercial o social"
+                      className="w-full pl-9 pr-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Cod. Interno</label>
+                    <input
+                      name="code"
+                      value={formData.code}
+                      onChange={handleChange}
+                      placeholder="PROV-000"
+                      className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">País</label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/20" />
+                      <input readOnly value="PERÚ (PE)" className="w-full pl-9 pr-3 py-2.5 bg-foreground/[0.01] border border-border rounded-lg text-[11px] font-black opacity-30 cursor-not-allowed" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-border/50" />
+
+              {/* Location & Contact */}
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                   <Autocomplete
+                    label="UBICACIÓN / DISTRITO *"
+                    options={districts.map(d => ({ id: d.id, label: d.description }))}
+                    value={formData.districtId}
+                    onChange={(val) => setFormData({ ...formData, districtId: String(val) })}
+                    placeholder="Elegir distrito..."
+                    icon={<MapPin className="w-3.5 h-3.5" />}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Dirección Exacta</label>
+                  <input
+                    name="address"
+                    required
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="Av. Las Malvinas 456..."
+                    className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none transition-all"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                   <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Teléfono</label>
+                    <div className="relative group">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/30 group-focus-within:text-orange-600" />
+                      <input
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        placeholder="987 654 321"
+                        className="w-full pl-9 pr-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">E-mail</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/30 group-focus-within:text-orange-600" />
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="ventas@proveedor.com"
+                        className="w-full pl-9 pr-3 py-2.5 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-border/50" />
+
+              {/* Observation */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Notas / Observaciones Comerciales</label>
+                <div className="relative group">
+                  <BadgeInfo className="absolute left-3 top-3 w-3.5 h-3.5 text-foreground/30 group-focus-within:text-orange-600" />
+                  <textarea
+                    name="observation"
+                    value={formData.observation}
+                    onChange={handleChange}
+                    rows={2}
+                    placeholder="Condiciones de pago, horarios, etc..."
+                    className="w-full pl-9 pr-3 py-2 bg-foreground/[0.03] border border-border focus:border-orange-600 rounded-lg text-[11px] font-bold focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Status Feedback */}
+            {(error || success) && (
+              <div className={`p-2 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-2 ${error ? 'bg-red-500/10 text-red-600 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>
+                {error ? <Trash2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {error || success}
+              </div>
+            )}
+
+            <div className="mt-auto pt-2 border-t border-border flex flex-col gap-2">
+              <button
+                type="submit"
+                disabled={creating || updating}
+                className="w-full py-3 bg-orange-600 text-white rounded-lg font-black text-[11px] shadow-lg shadow-orange-600/20 hover:bg-orange-500 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 uppercase tracking-[0.2em]"
+              >
+                {(creating || updating) ? (
+                  <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    {isEditing ? "ACTUALIZAR FICHA" : "REGISTRAR EN BASE"}
+                  </>
+                )}
+              </button>
+              {isEditing && (
+                 <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full py-2 bg-foreground/5 hover:bg-foreground/10 text-foreground font-black text-[10px] rounded-lg transition-all uppercase tracking-widest"
+                >
+                  CANCELAR EDICIÓN
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        {/* --- RIGHT: SUPPLIER LIST --- */}
+        <div className="flex-1 bg-card rounded-xl border border-border flex flex-col shadow-sm overflow-hidden min-w-0">
+          <div className="bg-foreground/[0.02] border-b border-border p-2 px-4 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Listado Maestro de Proveedores</span>
+            <span className="text-[10px] font-black bg-orange-600/10 text-orange-600 px-2 py-0.5 rounded-full">{filteredSuppliers.length} REGISTROS</span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto no-scrollbar relative">
+            <table className="w-full text-left border-collapse table-fixed">
+              <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm shadow-sm">
+                <tr>
+                  <th className="w-[8%] px-4 py-2 text-[9px] font-black uppercase tracking-widest opacity-40">Cod</th>
+                  <th className="w-[30%] px-4 py-2 text-[9px] font-black uppercase tracking-widest opacity-40">Razón Social</th>
+                  <th className="w-[15%] px-4 py-2 text-[9px] font-black uppercase tracking-widest opacity-40">Documento</th>
+                  <th className="w-[20%] px-4 py-2 text-[9px] font-black uppercase tracking-widest opacity-40">Ubicación</th>
+                  <th className="w-[15%] px-4 py-2 text-[9px] font-black uppercase tracking-widest opacity-40">Contacto</th>
+                  <th className="w-[12%] px-4 py-2 text-[9px] font-black uppercase tracking-widest opacity-40 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {loadingSuppliers ? (
+                  Array.from({ length: 12 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td colSpan={6} className="px-4 py-3"><div className="h-4 bg-foreground/5 rounded w-full" /></td>
+                    </tr>
+                  ))
+                ) : filteredSuppliers.map((supplier) => (
+                  <tr 
+                    key={supplier.id} 
+                    onClick={() => selectForEdit(supplier)}
+                    className={`group hover:bg-foreground/[0.02] cursor-pointer transition-all border-l-2 ${selectedSupplierId === supplier.id ? 'border-l-orange-600 bg-orange-600/[0.02]' : 'border-l-transparent'}`}
+                  >
+                    <td className="px-4 py-3 text-[10px] font-black opacity-30 tracking-tight">{supplier.code || '---'}</td>
+                    <td className="px-4 py-3">
+                      <p className="text-[11px] font-black truncate group-hover:text-orange-600 transition-colors uppercase italic">{supplier.names}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[9px] font-black opacity-40">{DOCUMENT_TYPES.find(t => t.id === supplier.documentType)?.label}</span>
+                        <span className="text-[10px] font-bold text-foreground/70 tracking-tighter">{supplier.documentNumber}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <MapPin className="w-3 h-3 text-orange-600 shrink-0" />
+                        <span className="text-[10px] font-bold truncate opacity-60">{supplier.address || "---"}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-0.5">
+                        {supplier.phone && <span className="text-[10px] font-bold tracking-tighter flex items-center gap-1"><Phone className="w-2.5 h-2.5" />{supplier.phone}</span>}
+                        {supplier.email && <span className="text-[9px] font-bold opacity-40 truncate">{supplier.email}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 group-hover:opacity-100 transition-opacity">
+                        <button className="p-1.5 hover:bg-orange-600 hover:text-white rounded-md transition-all text-foreground/30"><Pencil className="w-3 h-3" /></button>
+                        <button disabled className="p-1.5 hover:bg-red-600 hover:text-white rounded-md transition-all text-foreground/10 opacity-30 cursor-not-allowed"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

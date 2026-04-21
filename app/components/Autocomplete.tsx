@@ -183,10 +183,16 @@ export default function Autocomplete({
     const padding = compact ? "pl-9 pr-8 h-9" : "pl-11 pr-10 py-3.5";
     const rounded = compact ? "rounded-lg" : "rounded-2xl";
     const text = compact ? "text-[11px] font-black uppercase" : "text-[12px] font-bold";
-    const bg = dark ? "bg-slate-900 border-slate-600 text-white" : "bg-foreground/[0.02] border border-border text-foreground";
+    
+    let border = dark ? "border-slate-600" : "border-border";
+    if (error) {
+      border = "border-red-500 ring-2 ring-red-500/20";
+    }
+    
+    const bg = dark ? `bg-slate-900 ${border} text-white` : `bg-foreground/[0.02] border ${border} text-foreground`;
     
     return `${base} ${padding} ${rounded} ${text} ${bg}`;
-  }, [isGrid, compact, dark]);
+  }, [isGrid, compact, dark, error]);
 
   return (
     <div 

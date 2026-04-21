@@ -82,6 +82,8 @@ const CREATE_PURCHASE_MUTATION = gql`
   mutation CreatePurchase(
     $documentType: String!
     $operationType: String!
+    $operationStatus: String
+    $operationAction: String
     $serial: String!
     $correlative: Int!
     $currencyType: String!
@@ -107,6 +109,8 @@ const CREATE_PURCHASE_MUTATION = gql`
     createPurchase(
       documentType: $documentType
       operationType: $operationType
+      operationStatus: $operationStatus
+      operationAction: $operationAction
       serial: $serial
       correlative: $correlative
       currencyType: $currencyType
@@ -260,6 +264,7 @@ export default function PurchasesPage() {
   }]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [missingFields, setMissingFields] = useState<string[]>([]);
 
   const { data: resourcesData } = useQuery<ResourcesData>(PURCHASES_RESOURCES_QUERY);
   const { data: productsData } = useQuery<ProductsData>(PRODUCTS_QUERY);
@@ -298,6 +303,7 @@ export default function PurchasesPage() {
       cashId: ""
     });
     setQuotas([]);
+    setMissingFields([]);
   };
 
   const handleHeaderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -397,9 +403,26 @@ export default function PurchasesPage() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setMissingFields([]);
 
-    if (!formData.supplierId || !formData.subsidiaryId || !formData.warehouseId || !formData.userId || !formData.cashId) {
-      setError("Faltan campos obligatorios en el encabezado o pago.");
+    const missing = [];
+    if (!formData.supplierId) missing.push("supplierId");
+    if (!formData.subsidiaryId) missing.push("subsidiaryId");
+    if (!formData.warehouseId) missing.push("warehouseId");
+    if (!formData.userId) missing.push("userId");
+    if (!formData.cashId) missing.push("cashId");
+
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      const labels: Record<string, string> = {
+        supplierId: "Proveedor",
+        subsidiaryId: "Sucursal",
+        warehouseId: "Almacén",
+        userId: "Responsable",
+        cashId: "Caja/Banco"
+      };
+      const missingLabels = missing.map(m => labels[m]).join(", ");
+      setError(`Error Detectado: Faltan campos obligatorios: ${missingLabels}.`);
       return;
     }
     const validDetails = details.filter(d => d.productId);
@@ -415,6 +438,9 @@ export default function PurchasesPage() {
 
     const variables = {
       ...formData,
+      operationType: "0501",
+      operationStatus: "02",
+      operationAction: "E",
       userId: parseInt(formData.userId),
       supplierId: parseInt(formData.supplierId),
       subsidiaryId: parseInt(formData.subsidiaryId),
@@ -537,9 +563,13 @@ export default function PurchasesPage() {
                 label="Proveedor *"
                 options={resourcesData?.suppliers.map(s => ({ id: s.id, label: `${s.names} (${s.documentNumber})` })) || []}
                 value={formData.supplierId}
-                onChange={(val) => setFormData(prev => ({ ...prev, supplierId: String(val) }))}
+                onChange={(val) => {
+                  setFormData(prev => ({ ...prev, supplierId: String(val) }));
+                  setMissingFields(prev => prev.filter(f => f !== 'supplierId'));
+                }}
                 placeholder="RUC o Razón Social..."
                 icon={<Truck className="w-3.5 h-3.5 text-orange-600" />}
+                error={missingFields.includes('supplierId')}
                 compact
               />
             </div>
@@ -549,10 +579,14 @@ export default function PurchasesPage() {
                 label="Almacén de Destino *"
                 options={filteredWarehouses.map(w => ({ id: w.id, label: w.name }))}
                 value={formData.warehouseId}
-                onChange={(val) => setFormData(prev => ({ ...prev, warehouseId: String(val) }))}
+                onChange={(val) => {
+                  setFormData(prev => ({ ...prev, warehouseId: String(val) }));
+                  setMissingFields(prev => prev.filter(f => f !== 'warehouseId'));
+                }}
                 placeholder="Sede / Almacén..."
                 icon={<WarehouseIcon className="w-3.5 h-3.5 text-blue-600" />}
                 disabled={!formData.subsidiaryId}
+                error={missingFields.includes('warehouseId')}
                 compact
               />
             </div>
@@ -562,9 +596,13 @@ export default function PurchasesPage() {
                   label="Sucursal *"
                   options={resourcesData?.subsidiaries.map(s => ({ id: s.id, label: s.name })) || []}
                   value={formData.subsidiaryId}
-                  onChange={(val) => setFormData(prev => ({ ...prev, subsidiaryId: String(val), warehouseId: "" }))}
+                  onChange={(val) => {
+                    setFormData(prev => ({ ...prev, subsidiaryId: String(val), warehouseId: "" }));
+                    setMissingFields(prev => prev.filter(f => f !== 'subsidiaryId'));
+                  }}
                   placeholder="Sede..."
                   icon={<Construction className="w-3.5 h-3.5 text-foreground/55" />}
+                  error={missingFields.includes('subsidiaryId')}
                   compact
                />
             </div>
@@ -572,7 +610,15 @@ export default function PurchasesPage() {
             <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
               <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1">Responsable</label>
               <div className="relative">
-                <select name="userId" value={formData.userId} onChange={handleHeaderChange} className="w-full h-9 pl-8 pr-3 bg-background border border-border rounded-lg text-xs font-black text-foreground appearance-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 transition-all outline-none">
+                <select 
+                  name="userId" 
+                  value={formData.userId} 
+                  onChange={(e) => {
+                    handleHeaderChange(e);
+                    setMissingFields(prev => prev.filter(f => f !== 'userId'));
+                  }} 
+                  className={`w-full h-9 pl-8 pr-3 bg-background border rounded-lg text-xs font-black text-foreground appearance-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 transition-all outline-none ${missingFields.includes('userId') ? 'border-red-500 ring-2 ring-red-500/20' : 'border-border'}`}
+                >
                   <option value="">Seleccione...</option>
                   {resourcesData?.users.map(u => <option key={u.id} value={u.id}>{u.username.toUpperCase()}</option>)}
                 </select>
@@ -728,10 +774,14 @@ export default function PurchasesPage() {
                    label="Caja o Banco de Origen"
                    options={filteredCashes.map(c => ({ id: c.id, label: `${c.name} (${c.currencyDescription})` }))}
                    value={formData.cashId}
-                   onChange={(val) => setFormData(prev => ({ ...prev, cashId: String(val) }))}
+                   onChange={(val) => {
+                     setFormData(prev => ({ ...prev, cashId: String(val) }));
+                     setMissingFields(prev => prev.filter(f => f !== 'cashId'));
+                   }}
                    placeholder="Canal de fondos..."
                    icon={<Hash className="w-3.5 h-3.5 text-orange-500" />}
                    disabled={!formData.subsidiaryId}
+                   error={missingFields.includes('cashId')}
                    compact
                  />
               </div>

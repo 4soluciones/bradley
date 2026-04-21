@@ -27,7 +27,7 @@ export default function Navbar({ isSidebarCollapsed, onToggleSidebar }: NavbarPr
             {/* Toggle Button */}
             <button 
               onClick={onToggleSidebar}
-              className="p-2 hover:bg-foreground/5 rounded-xl transition-colors text-foreground/60 hover:text-orange-600 hidden sm:block"
+              className="p-2 hover:bg-foreground/5 rounded-xl transition-colors text-foreground/60 hover:text-orange-600"
               title={isSidebarCollapsed ? "Expandir menú" : "Contraer menú"}
             >
               {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
