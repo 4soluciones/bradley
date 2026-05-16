@@ -5,17 +5,13 @@ export const PRODUCTS_QUERY = gql`
     products {
       id
       code
-      barcode
       name
       stockMin
       stockMax
       available
       activeType
-      ean
-      weightInKilograms
       typeAffectation
       observation
-      measurements
       length
       height
       width
@@ -23,9 +19,14 @@ export const PRODUCTS_QUERY = gql`
       subsidiaryId
       productCategoryId
       productClassId
-      tariffs {
+      productBrandId
+      productBrand {
         id
         name
+        isEnabled
+      }
+      tariffs {
+        id
         unitId
         typePrice
         priceWithIgv
@@ -80,9 +81,19 @@ export const SUBSIDIARIES_QUERY = gql`
   }
 `;
 
+export const PRODUCT_BRANDS_QUERY = gql`
+  query GetProductBrands {
+    productBrands {
+      id
+      name
+      isEnabled
+    }
+  }
+`;
+
 export const CREATE_PRODUCT_MUTATION = gql`
-  mutation CreateProduct($name: String!, $tariffs: [TariffInput!], $subsidiaryId: Int, $measurements: String, $length: Float, $height: Float, $width: Float, $weight: Float, $available: Boolean, $observation: String, $code: String, $barcode: String, $stockMin: Int, $stockMax: Int, $activeType: String, $ean: String, $typeAffectation: String, $productCategoryId: Int, $productClassId: Int, $imageBase64: String) {
-    createProduct(name: $name, tariffs: $tariffs, subsidiaryId: $subsidiaryId, measurements: $measurements, length: $length, height: $height, width: $width, weight: $weight, available: $available, observation: $observation, code: $code, barcode: $barcode, stockMin: $stockMin, stockMax: $stockMax, activeType: $activeType, ean: $ean, typeAffectation: $typeAffectation, productCategoryId: $productCategoryId, productClassId: $productClassId, imageBase64: $imageBase64) {
+  mutation CreateProduct($name: String!, $tariffs: [TariffInput!], $subsidiaryId: Int, $length: Float, $height: Float, $width: Float, $available: Boolean, $observation: String, $code: String, $stockMin: Int, $stockMax: Int, $activeType: String, $typeAffectation: String, $productCategoryId: Int, $productClassId: Int, $productBrandId: Int, $imageBase64: String) {
+    createProduct(name: $name, tariffs: $tariffs, subsidiaryId: $subsidiaryId, length: $length, height: $height, width: $width, available: $available, observation: $observation, code: $code, stockMin: $stockMin, stockMax: $stockMax, activeType: $activeType, typeAffectation: $typeAffectation, productCategoryId: $productCategoryId, productClassId: $productClassId, productBrandId: $productBrandId, imageBase64: $imageBase64) {
       success
       message
       id
@@ -91,8 +102,8 @@ export const CREATE_PRODUCT_MUTATION = gql`
 `;
 
 export const UPDATE_PRODUCT_MUTATION = gql`
-  mutation UpdateProduct($id: Int!, $name: String, $tariffs: [TariffInput!], $subsidiaryId: Int, $measurements: String, $length: Float, $height: Float, $width: Float, $weight: Float, $available: Boolean, $observation: String, $code: String, $barcode: String, $stockMin: Int, $stockMax: Int, $activeType: String, $ean: String, $typeAffectation: String, $productCategoryId: Int, $productClassId: Int, $imageBase64: String) {
-    updateProduct(id: $id, name: $name, tariffs: $tariffs, subsidiaryId: $subsidiaryId, measurements: $measurements, length: $length, height: $height, width: $width, weight: $weight, available: $available, observation: $observation, code: $code, barcode: $barcode, stockMin: $stockMin, stockMax: $stockMax, activeType: $activeType, ean: $ean, typeAffectation: $typeAffectation, productCategoryId: $productCategoryId, productClassId: $productClassId, imageBase64: $imageBase64) {
+  mutation UpdateProduct($id: Int!, $name: String, $tariffs: [TariffInput!], $subsidiaryId: Int, $length: Float, $height: Float, $width: Float, $available: Boolean, $observation: String, $code: String, $stockMin: Int, $stockMax: Int, $activeType: String, $typeAffectation: String, $productCategoryId: Int, $productClassId: Int, $productBrandId: Int, $imageBase64: String) {
+    updateProduct(id: $id, name: $name, tariffs: $tariffs, subsidiaryId: $subsidiaryId, length: $length, height: $height, width: $width, available: $available, observation: $observation, code: $code, stockMin: $stockMin, stockMax: $stockMax, activeType: $activeType, typeAffectation: $typeAffectation, productCategoryId: $productCategoryId, productClassId: $productClassId, productBrandId: $productBrandId, imageBase64: $imageBase64) {
       success
       message
     }

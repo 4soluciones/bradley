@@ -1,5 +1,4 @@
 export interface Tariff {
-  name: string;
   unitId: number | string;
   typePrice: number;
   priceWithIgv: number;
@@ -7,27 +6,31 @@ export interface Tariff {
   quantityMinimum: number;
 }
 
+export interface ProductBrand {
+  id: string;
+  name: string;
+  isEnabled: boolean;
+}
+
 export interface Product {
   id: string;
   code: string | null;
-  barcode: string | null;
   name: string;
   subsidiaryId?: number | null;
   stockMin: number;
   stockMax: number;
   available: boolean;
   activeType: string;
-  ean: string | null;
-  weightInKilograms: number;
   typeAffectation: string;
   observation: string | null;
-  measurements: string | null;
   length: number;
   height: number;
   width: number;
   imageUrl: string | null;
   productCategoryId?: number | null;
   productClassId?: number | null;
+  productBrandId?: number | null;
+  productBrand?: ProductBrand | null;
   tariffs: Tariff[];
   productStores?: { stock: number }[];
 }
@@ -147,6 +150,10 @@ export interface ProductCategoriesData {
 
 export interface ProductClassesData {
   productClasses: ProductClass[];
+}
+
+export interface ProductBrandsData {
+  productBrands: ProductBrand[];
 }
 
 export interface CreateCategoryData {

@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { Camera, Plus, AlertCircle, CheckCircle2, Boxes } from "lucide-react";
 import { useToast } from "@/app/components/ToastContext";
 import Modal from "@/app/components/Modal";
-import { Tariff, Product, UnitsData, WarehousesData, ProductCategoriesData, ProductClassesData, ProductStoresData, CreateProductData, UpdateProductData, SetStockData, ProductStoreEntry } from "../types";
+import { Tariff, Product, UnitsData, WarehousesData, ProductCategoriesData, ProductClassesData, ProductBrandsData, ProductStoresData, CreateProductData, UpdateProductData, SetStockData, ProductStoreEntry } from "../types";
 import { getProductImageUrl } from "../utils";
 import { 
   CREATE_PRODUCT_MUTATION, 
@@ -15,7 +15,8 @@ import {
   WAREHOUSES_QUERY, 
   PRODUCT_STORES_QUERY,
   PRODUCT_CATEGORIES_QUERY,
-  PRODUCT_CLASSES_QUERY
+  PRODUCT_CLASSES_QUERY,
+  PRODUCT_BRANDS_QUERY
 } from "../graphql";
 
 interface ProductFormProps {
@@ -36,15 +37,11 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
     id: "",
     name: "",
     code: "",
-    barcode: "",
     stockMin: "0",
     stockMax: "0",
     activeType: "01",
-    ean: "",
-    weight: "0",
     typeAffectation: "10",
     subsidiaryId: "",
-    measurements: "",
     length: "0",
     height: "0",
     width: "0",
@@ -55,6 +52,7 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
     productStores: [] as { warehouseId: string; stock: string }[],
     productCategoryId: "",
     productClassId: "",
+    productBrandId: "",
   });
 
   // Queries
@@ -62,6 +60,7 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
   const { data: warehousesData } = useQuery<WarehousesData>(WAREHOUSES_QUERY);
   const { data: categoriesData } = useQuery<ProductCategoriesData>(PRODUCT_CATEGORIES_QUERY);
   const { data: classesData } = useQuery<ProductClassesData>(PRODUCT_CLASSES_QUERY);
+  const { data: brandsData } = useQuery<ProductBrandsData>(PRODUCT_BRANDS_QUERY);
   const { data: productStoresData } = useQuery<ProductStoresData>(PRODUCT_STORES_QUERY, {
     variables: { productId: productData ? parseInt(productData.id) : null },
     skip: !productData || !isOpen
@@ -74,34 +73,34 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
         id: productData.id,
         name: productData.name,
         code: productData.code || "",
-        barcode: productData.barcode || "",
         stockMin: productData.stockMin.toString(),
         stockMax: productData.stockMax.toString(),
         activeType: productData.activeType,
-        ean: productData.ean || "",
-        weight: productData.weightInKilograms.toString(),
         typeAffectation: productData.typeAffectation,
         available: productData.available,
         observation: productData.observation || "-",
         subsidiaryId: productData.subsidiaryId?.toString() || "",
-        measurements: productData.measurements || "",
         length: productData.length.toString(),
         height: productData.height.toString(),
         width: productData.width.toString(),
         imagePreview: getProductImageUrl(productData.imageUrl) || null,
-        tariffs: productData.tariffs.map(t => ({ ...t, name: t.name || "", unitId: t.unitId || "" })),
+        tariffs: productData.tariffs.map(t => ({
+          ...t,
+          unitId: t.unitId != null && t.unitId !== "" ? t.unitId : "1",
+        })),
         productStores: [],
         productCategoryId: productData.productCategoryId?.toString() || "",
         productClassId: productData.productClassId?.toString() || "",
+        productBrandId: productData.productBrandId?.toString() || "",
       });
       setActiveTab("precios_venta");
     } else if (!productData && isOpen) {
       setFormData({
-        id: "", name: "", code: "", barcode: "", stockMin: "0", stockMax: "0", activeType: "01",
-        ean: "", weight: "0", typeAffectation: "10", subsidiaryId: "",
-        measurements: "", length: "0", height: "0", width: "0", available: true,
+        id: "", name: "", code: "", stockMin: "0", stockMax: "0", activeType: "01",
+        typeAffectation: "10", subsidiaryId: "",
+        length: "0", height: "0", width: "0", available: true,
         observation: "-", imagePreview: null, tariffs: [], productStores: [] as { warehouseId: string; stock: string }[],
-        productCategoryId: "", productClassId: "",
+        productCategoryId: "", productClassId: "", productBrandId: "",
       });
       setActiveTab("precios_venta");
     }
@@ -133,8 +132,7 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
 
   const addTariff = (typePrice: number = 3) => {
     const newTariff: Tariff = { 
-      name: "", 
-      unitId: "", 
+      unitId: "1", 
       typePrice, 
       priceWithIgv: 0, 
       priceWithoutIgv: 0, 
@@ -194,23 +192,14 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
       danger("Debe agregar al menos una tarifa de precio.");
       return;
     }
-    if (formData.tariffs.some(t => !t.unitId || t.unitId === "")) {
-      danger("Todas las tarifas deben tener una unidad seleccionada.");
-      return;
-    }
-
     const variables = {
       name: formData.name,
       code: formData.code,
-      barcode: formData.barcode,
       stockMin: parseInt(formData.stockMin) || 0,
       stockMax: parseInt(formData.stockMax) || 0,
       activeType: formData.activeType,
-      ean: formData.ean,
-      weight: parseFloat(formData.weight) || 0,
       typeAffectation: formData.typeAffectation,
       subsidiaryId: formData.subsidiaryId ? parseInt(formData.subsidiaryId) : null,
-      measurements: formData.measurements,
       imageBase64: formData.imagePreview || null,
       length: parseFloat(formData.length) || 0,
       height: parseFloat(formData.height) || 0,
@@ -219,9 +208,9 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
       observation: formData.observation,
       productCategoryId: formData.productCategoryId ? parseInt(formData.productCategoryId) : null,
       productClassId: formData.productClassId ? parseInt(formData.productClassId) : null,
+      productBrandId: formData.productBrandId ? parseInt(formData.productBrandId) : null,
       tariffs: formData.tariffs.map(t => ({
-        name: t.name || "",
-        unitId: parseInt(t.unitId.toString()),
+        unitId: parseInt((t.unitId && t.unitId !== "" ? t.unitId : "1").toString(), 10),
         typePrice: Number(t.typePrice),
         priceWithIgv: parseFloat(t.priceWithIgv.toString()) || 0,
         priceWithoutIgv: parseFloat(t.priceWithoutIgv.toString()) || 0,
@@ -305,15 +294,9 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
               <label className="font-bold text-foreground/40 uppercase text-[10px] tracking-widest pl-1">Notas</label>
               <textarea name="observation" rows={2} value={formData.observation} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg resize-none" />
             </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground/40 uppercase text-[10px] tracking-widest pl-1">Código</label>
-                  <input name="code" value={formData.code} onChange={handleChange} disabled={readOnly} readOnly={readOnly} className="w-full px-3 py-1.5 bg-foreground/[0.02] border border-border rounded-md" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground/40 uppercase text-[10px] tracking-widest pl-1">Medidas</label>
-                  <input name="measurements" value={formData.measurements} onChange={handleChange} disabled={readOnly} readOnly={readOnly} className="w-full px-3 py-1.5 bg-foreground/[0.02] border border-border rounded-md" />
-              </div>
+            <div className="space-y-1">
+              <label className="font-bold text-foreground/40 uppercase text-[10px] tracking-widest pl-1">Código</label>
+              <input name="code" value={formData.code} onChange={handleChange} disabled={readOnly} readOnly={readOnly} className="w-full px-3 py-1.5 bg-foreground/[0.02] border border-border rounded-md" />
             </div>
           </div>
         </div>
@@ -324,10 +307,10 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
               <span className="text-4xl font-black text-foreground leading-none">{mainPrice ? Number(mainPrice).toFixed(2) : '0.00'}</span>
            </div>
            <div className="flex items-center gap-4 flex-1">
-              {['length', 'height', 'width', 'weight'].map(f => (
+              {(['length', 'height', 'width'] as const).map(f => (
                 <div key={f} className="flex items-center gap-2">
                   <label className="font-bold text-foreground/40 text-[10px] uppercase">{f}:</label>
-                  <input type="number" name={f} value={(formData as any)[f]} onChange={handleChange} className="w-16 px-2 py-1 bg-card border border-border rounded text-right font-bold" />
+                  <input type="number" name={f} value={(formData as Record<string, string>)[f]} onChange={handleChange} className="w-16 px-2 py-1 bg-card border border-border rounded text-right font-bold" />
                 </div>
               ))}
            </div>
@@ -345,9 +328,8 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
             {(activeTab === "precios_compra" || activeTab === "precios_venta") ? (
               <div className="space-y-3">
                  <div className="grid grid-cols-12 gap-2 bg-foreground/5 p-2 rounded text-[10px] font-black uppercase text-foreground/40">
-                    <div className="col-span-2">Nombre</div>
-                    <div className="col-span-2">Unidad</div>
-                    <div className="col-span-2">Tipo</div>
+                    <div className="col-span-3">Unidad</div>
+                    <div className="col-span-3">Tipo</div>
                     <div className="col-span-2">P. sin IGV</div>
                     <div className="col-span-2">P. con IGV</div>
                     <div className="col-span-1">Cant. mín</div>
@@ -362,12 +344,11 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
 
                       return (
                         <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                          <input placeholder="Ej: Venta unidad" className="col-span-2 p-1.5 bg-foreground/[0.02] border border-border rounded text-[11px]" value={t.name || ""} onChange={(e) => updateTariff(i, 'name', e.target.value)} />
-                          <select className="col-span-2 p-1.5 bg-foreground/[0.02] border border-border rounded" value={t.unitId} onChange={(e) => updateTariff(i, 'unitId', e.target.value)}>
-                            <option value="">Seleccionar</option>
-                            {unitsData?.units.map((u: any) => <option key={u.id} value={u.id}>{u.shortName} - {u.description || ""}</option>)}
+                          <select className="col-span-3 p-1.5 bg-foreground/[0.02] border border-border rounded" value={t.unitId} onChange={(e) => updateTariff(i, 'unitId', e.target.value)}>
+                            <option value="1">NIU (predeterminado)</option>
+                            {unitsData?.units.filter((u: { id: string }) => String(u.id) !== "1").map((u: any) => <option key={u.id} value={u.id}>{u.shortName} - {u.description || ""}</option>)}
                           </select>
-                          <select className="col-span-2 p-1.5 bg-foreground/[0.02] border border-border rounded text-[11px]" value={t.typePrice} onChange={(e) => updateTariff(i, 'typePrice', parseInt(e.target.value))}>
+                          <select className="col-span-3 p-1.5 bg-foreground/[0.02] border border-border rounded text-[11px]" value={t.typePrice} onChange={(e) => updateTariff(i, 'typePrice', parseInt(e.target.value))}>
                             {activeTab === "precios_compra" ? (
                               <>
                                 <option value={1}>Costo compra unit.</option>
@@ -430,14 +411,6 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
                     <input name="code" value={formData.code} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg" />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-foreground/40 uppercase text-[10px] pl-1">Cód. Barras</label>
-                    <input name="barcode" value={formData.barcode} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-foreground/40 uppercase text-[10px] pl-1">EAN</label>
-                    <input name="ean" value={formData.ean} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg" />
-                  </div>
-                  <div className="space-y-1">
                     <label className="font-bold text-foreground/40 uppercase text-[10px] pl-1">Stock Mín</label>
                     <input type="number" name="stockMin" value={formData.stockMin} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg" />
                   </div>
@@ -475,6 +448,15 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
                     <select name="productClassId" value={formData.productClassId} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg">
                       <option value="">Seleccionar Clase</option>
                       {classesData?.productClasses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground/40 uppercase text-[10px] pl-1">Marca</label>
+                    <select name="productBrandId" value={formData.productBrandId} onChange={handleChange} className="w-full px-3 py-2 bg-foreground/[0.02] border border-border rounded-lg">
+                      <option value="">Sin marca</option>
+                      {brandsData?.productBrands?.map((b: { id: string; name: string }) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, type CSSProperties } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, type CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import { useTheme } from 'next-themes';
 import { useQuery, useMutation } from '@apollo/client/react';
@@ -8,6 +8,7 @@ import { PRODUCTS_QUERY, WAREHOUSES_QUERY } from '../../products/graphql';
 import { ProductsData } from '../../products/types';
 import { getApiBaseUrl } from '@/app/lib/config';
 import Modal from '@/app/components/Modal';
+import { useToast } from '@/app/components/ToastContext';
 import { gql } from '@apollo/client';
 import {
   Monitor,
@@ -20,6 +21,7 @@ import {
   AlertCircle,
   Construction,
   MapPin,
+  Hash,
 } from 'lucide-react';
 
 const SALE_STATUS_OPTIONS = [
@@ -58,7 +60,6 @@ const CREATE_SALE_MUTATION = gql`
     $clientId: Int!,
     $subsidiaryId: Int!,
     $warehouseId: Int!,
-    $igvType: Float!,
     $totalTaxed: Float!,
     $totalIgv: Float!,
     $totalAmount: Float!,
@@ -82,7 +83,6 @@ const CREATE_SALE_MUTATION = gql`
       clientId: $clientId,
       subsidiaryId: $subsidiaryId,
       warehouseId: $warehouseId,
-      igvType: $igvType,
       totalTaxed: $totalTaxed,
       totalIgv: $totalIgv,
       totalAmount: $totalAmount,
@@ -99,6 +99,28 @@ const CREATE_SALE_MUTATION = gql`
   }
 `;
 
+const USER_SUBSIDIARY_ID_QUERY = gql`
+  query UserSubsidiaryId($userId: Int!) {
+    userSubsidiaryId(userId: $userId)
+  }
+`;
+
+const SERIAL_ASSIGNED_FOR_SALE_QUERY = gql`
+  query SerialAssignedForSale($subsidiaryId: Int!, $documentType: String!) {
+    serialAssignedForSale(subsidiaryId: $subsidiaryId, documentType: $documentType) {
+      id
+      serial
+      documentType
+    }
+  }
+`;
+
+const SALE_NEXT_CORRELATIVE_QUERY = gql`
+  query SaleNextCorrelative($subsidiaryId: Int!, $documentType: String!, $serial: String!) {
+    saleNextCorrelative(subsidiaryId: $subsidiaryId, documentType: $documentType, serial: $serial)
+  }
+`;
+
 interface CartItem {
   id: string;
   code: string;
@@ -112,6 +134,18 @@ interface CartItem {
 }
 
 const IGV_MULTIPLIER = 1.18;
+
+/** Stock total en almacenes (GraphQL devuelve un array `productStores`). */
+function totalProductStoreStock(product: { productStores?: { stock?: unknown }[] | null }): number {
+  const rows = product.productStores;
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+  return rows.reduce((acc, row) => {
+    const raw = row?.stock;
+    if (raw == null || raw === '') return acc;
+    const n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
+    return acc + (Number.isFinite(n) ? n : 0);
+  }, 0);
+}
 
 function buildSaleDetailInput(item: CartItem) {
   const qty = item.quantity;
@@ -180,6 +214,24 @@ interface CreateSaleResponse {
   };
 }
 
+interface UserSubsidiaryIdData {
+  userSubsidiaryId: number | null;
+}
+
+interface SerialAssignedForSaleRow {
+  id: number;
+  serial: string | null;
+  documentType: string;
+}
+
+interface SerialAssignedForSaleData {
+  serialAssignedForSale: SerialAssignedForSaleRow[];
+}
+
+interface SaleNextCorrelativeData {
+  saleNextCorrelative: number;
+}
+
 const CLIENTS_QUERY = gql`
   query GetClientsForSales {
     clients {
@@ -214,6 +266,7 @@ const decodeJwtPayload = (token: string) => {
 
 export default function NewSalePage() {
   const { resolvedTheme } = useTheme();
+  const { warning: toastWarning } = useToast();
   const formColorScheme: CSSProperties['colorScheme'] =
     resolvedTheme === 'dark' ? 'dark' : 'light';
 
@@ -232,11 +285,16 @@ export default function NewSalePage() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
   const productSearchInputRef = useRef<HTMLInputElement>(null);
+  const productModalQtyRef = useRef<HTMLInputElement>(null);
   const clientSearchInputRef = useRef<HTMLInputElement>(null);
   const customerDisplayWindowRef = useRef<Window | null>(null);
   const pendingDisplayProductRef = useRef<CartItem | null>(null);
   const [productHighlightIndex, setProductHighlightIndex] = useState(0);
+  const [productModalQtyInput, setProductModalQtyInput] = useState('1');
   const [clientHighlightIndex, setClientHighlightIndex] = useState(0);
+  /** Edición P.U. en carrito: borrador en foco para no forzar toFixed mientras se escribe. */
+  const [puEditingKey, setPuEditingKey] = useState<string | null>(null);
+  const [puDraft, setPuDraft] = useState('');
 
   // Form State
   const [client, setClient] = useState({
@@ -249,16 +307,19 @@ export default function NewSalePage() {
   const [documentType, setDocumentType] = useState('03'); // Boleta
   const [saleStatus, setSaleStatus] = useState<string>('registrado');
   const [operationType, setOperationType] = useState<string>('0101');
-  const [serial, setSerial] = useState('B001');
+  const [serial, setSerial] = useState('');
   const [correlative, setCorrelative] = useState(1);
-  const [code, setCode] = useState(() => {
+  const [code, setCode] = useState(1);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedCode = localStorage.getItem('bradley_pos_code');
       const n = savedCode ? parseInt(savedCode, 10) : 1;
-      return Number.isFinite(n) && n >= 1 ? n : 1;
+      if (Number.isFinite(n) && n >= 1) {
+        setCode(n);
+      }
     }
-    return 1;
-  });
+  }, []);
 
   const incrementCode = () => {
     const nextCode = code + 1;
@@ -293,6 +354,76 @@ export default function NewSalePage() {
     return w?.subsidiaryId ?? null;
   }, [cart, saleWarehouseId, warehousesData]);
 
+  const { data: userSubData, loading: userSubLoading } = useQuery<UserSubsidiaryIdData>(
+    USER_SUBSIDIARY_ID_QUERY,
+    {
+      variables: { userId: loggedUserId! },
+      skip: loggedUserId == null,
+      fetchPolicy: 'cache-first',
+    }
+  );
+
+  const userSubsidiaryId = userSubData?.userSubsidiaryId ?? null;
+
+  const { data: serialsData, loading: serialsLoading, refetch: refetchSerials } =
+    useQuery<SerialAssignedForSaleData>(SERIAL_ASSIGNED_FOR_SALE_QUERY, {
+      variables: {
+        subsidiaryId: userSubsidiaryId ?? 0,
+        documentType,
+      },
+      skip: userSubsidiaryId == null,
+      fetchPolicy: 'network-only',
+    });
+
+  const seriesOptions = useMemo(
+    () =>
+      (serialsData?.serialAssignedForSale ?? [])
+        .map((r) => (r.serial ?? '').trim())
+        .filter((s): s is string => Boolean(s)),
+    [serialsData]
+  );
+
+  const { data: corrData, loading: corrLoading, refetch: refetchNextCorrelative } =
+    useQuery<SaleNextCorrelativeData>(SALE_NEXT_CORRELATIVE_QUERY, {
+      variables: {
+        subsidiaryId: userSubsidiaryId ?? 0,
+        documentType,
+        serial: serial.trim(),
+      },
+      skip: userSubsidiaryId == null || !serial.trim(),
+      fetchPolicy: 'network-only',
+    });
+
+  useLayoutEffect(() => {
+    if (userSubsidiaryId == null) {
+      if (!userSubLoading) {
+        setSerial('');
+        setCorrelative(1);
+      }
+      return;
+    }
+    if (serialsLoading) return;
+    if (!seriesOptions.length) {
+      setSerial('');
+      setCorrelative(1);
+      return;
+    }
+    setSerial((prev) => {
+      const p = prev.trim();
+      if (p && seriesOptions.includes(p)) return p;
+      return seriesOptions[0];
+    });
+  }, [userSubsidiaryId, documentType, seriesOptions, serialsLoading, userSubLoading]);
+
+  useEffect(() => {
+    if (userSubsidiaryId == null || !serial.trim()) return;
+    if (corrLoading) return;
+    const n = corrData?.saleNextCorrelative;
+    if (typeof n === 'number' && Number.isFinite(n)) {
+      setCorrelative(n);
+    }
+  }, [userSubsidiaryId, serial, documentType, corrData, corrLoading]);
+
   useEffect(() => {
     const wsUrl = getApiBaseUrl().replace('http', 'ws') + '/ws/sale-display/';
     const ws = new WebSocket(wsUrl);
@@ -308,7 +439,8 @@ export default function NewSalePage() {
                 name: pending.name,
                 price: pending.price.toString(),
                 image: pending.image,
-                description: `Código: ${pending.code}`,
+                quantity: pending.quantity,
+                total: (pending.price * pending.quantity).toFixed(2),
               },
             })
           );
@@ -373,6 +505,7 @@ export default function NewSalePage() {
   useEffect(() => {
     if (isProductModalOpen) {
       setProductHighlightIndex(0);
+      setProductModalQtyInput('1');
       setTimeout(() => productSearchInputRef.current?.focus(), 0);
     }
   }, [isProductModalOpen]);
@@ -394,18 +527,62 @@ export default function NewSalePage() {
     setClientHighlightIndex(0);
   }, [clientSearchTerm, isClientModalOpen]);
 
-  const addToCart = (product: any) => {
-    const tariff = product.tariffs?.[0]; // Default to first tariff
+  const addToCart = (product: any, qtyOverride?: number) => {
+    const tariff = product.tariffs?.find((t: any) => t.typePrice === 3 || t.typePrice === '3') || product.tariffs?.[0]; // Default to selling price or first tariff
     if (!tariff) return;
+
+    const tariffId = parseInt(tariff.id, 10);
+    const stockNum = totalProductStoreStock(product);
+    const stockFloor = Math.max(0, Math.floor(stockNum + 1e-9));
+
+    const requestedQty = (() => {
+      if (qtyOverride !== undefined && qtyOverride !== null) {
+        return Math.max(1, Math.floor(Number(qtyOverride)) || 1);
+      }
+      const trimmed = productModalQtyInput.trim();
+      if (trimmed === '') {
+        toastWarning('Indique la cantidad a agregar.', 3800);
+        return null;
+      }
+      const n = parseInt(trimmed, 10);
+      if (!Number.isFinite(n) || n < 1) {
+        toastWarning('Cantidad no válida. Ingrese un número entero mayor a cero.', 3800);
+        return null;
+      }
+      return n;
+    })();
+    if (requestedQty === null) return;
+
+    const sameLine = cart.find((item) => item.id === product.id && item.tariffId === tariffId);
+    const inCartQty = sameLine?.quantity ?? 0;
+
+    const allowedMore = Math.max(0, stockFloor - inCartQty);
+    if (requestedQty > allowedMore) {
+      if (allowedMore >= 1) {
+        toastWarning(
+          `Stock insuficiente: pediste ${requestedQty} u. y solo hay ${allowedMore} disponible(s) (total en almacén: ${stockFloor}). Reduzca la cantidad para agregar.`,
+          4200
+        );
+      } else {
+        toastWarning(
+          'No hay stock suficiente: no quedan unidades disponibles de este producto.',
+          3800
+        );
+      }
+      return;
+    }
+
+    const addQty = requestedQty;
+
+    if (addQty < 1) return;
 
     const lineHolder: { current: CartItem | null } = { current: null };
 
     flushSync(() => {
       setCart((prev) => {
-        const tariffId = parseInt(tariff.id, 10);
         const existingIndex = prev.findIndex((item) => item.id === product.id && item.tariffId === tariffId);
         if (existingIndex >= 0) {
-          const nextQty = prev[existingIndex].quantity + 1;
+          const nextQty = prev[existingIndex].quantity + addQty;
           lineHolder.current = { ...prev[existingIndex], quantity: nextQty };
           return prev.map((item, index) =>
             index === existingIndex ? { ...item, quantity: nextQty } : item
@@ -415,7 +592,7 @@ export default function NewSalePage() {
           id: product.id,
           code: product.code || 'N/A',
           name: product.name,
-          quantity: 1,
+          quantity: addQty,
           price: tariff.priceWithIgv,
           image: product.imageUrl,
           tariffId,
@@ -429,11 +606,20 @@ export default function NewSalePage() {
 
     setIsProductModalOpen(false);
     setSearchTerm('');
+    setProductModalQtyInput('1');
 
     const lineForDisplay = lineHolder.current;
     if (lineForDisplay) {
       syncPickerProductToCustomerDisplay(lineForDisplay);
     }
+  };
+
+  const confirmAddHighlightedProduct = () => {
+    if (productsLoading || filteredProducts.length === 0) return;
+    const p = filteredProducts[productHighlightIndex];
+    if (!p) return;
+    if (totalProductStoreStock(p) <= 0) return;
+    addToCart(p);
   };
 
   const selectClient = (c: ClientListItem) => {
@@ -462,7 +648,8 @@ export default function NewSalePage() {
             name: item.name,
             price: item.price.toString(),
             image: item.image,
-            description: `Código: ${item.code}`,
+            quantity: item.quantity,
+            total: (item.price * item.quantity).toFixed(2),
           },
         })
       );
@@ -533,6 +720,31 @@ export default function NewSalePage() {
       setSaveError('No se pudo determinar la sede de la operación.');
       return;
     }
+    if (
+      userSubsidiaryId != null &&
+      saleSubsidiaryId != null &&
+      userSubsidiaryId !== saleSubsidiaryId
+    ) {
+      setSaveError(
+        'La sede de los productos no coincide con la sucursal asignada a su usuario.'
+      );
+      return;
+    }
+    if (userSubsidiaryId != null) {
+      if (!seriesOptions.length) {
+        setSaveError(
+          'No hay series para su sucursal y este tipo de documento. Configúrelas en Config → Series de comprobantes.'
+        );
+        return;
+      }
+      if (!serial.trim() || !seriesOptions.includes(serial.trim())) {
+        setSaveError('Seleccione una serie de comprobante.');
+        return;
+      }
+    } else if (!serial?.trim()) {
+      setSaveError('Indique la serie del comprobante.');
+      return;
+    }
     const firstSub = cart[0].subsidiaryId;
     const mixedSubsidiary = cart.some((i) => (i.subsidiaryId ?? null) !== (firstSub ?? null));
     if (mixedSubsidiary) {
@@ -566,7 +778,6 @@ export default function NewSalePage() {
           clientId: client.id,
           subsidiaryId: saleSubsidiaryId,
           warehouseId: saleWarehouseId,
-          igvType: 18,
           totalTaxed,
           totalIgv: totalIgvSum,
           totalAmount: totalAmt,
@@ -579,9 +790,23 @@ export default function NewSalePage() {
       });
       if (data?.createSale?.success) {
         setSaveSuccess(data.createSale.message ?? 'Venta registrada.');
-        setCart([]);
-        setCorrelative((c) => c + 1);
+        const capturedUserSub = userSubsidiaryId;
+        const capturedDoc = documentType;
+        const capturedSerial = serial;
         incrementCode();
+        setCart([]);
+        if (capturedUserSub != null && capturedSerial.trim()) {
+          try {
+            await refetchNextCorrelative({
+              subsidiaryId: capturedUserSub,
+              documentType: capturedDoc,
+              serial: capturedSerial.trim(),
+            });
+            void refetchSerials();
+          } catch {
+            /* el siguiente correlativo se recalcula al volver a cargar series */
+          }
+        }
       } else {
         setSaveError(data?.createSale?.message ?? 'No se pudo registrar la venta.');
       }
@@ -640,6 +865,7 @@ export default function NewSalePage() {
   }, [clientHighlightIndex, isClientModalOpen, clientsLoading, filteredClients.length]);
 
   const openCustomerDisplay = () => {
+    clearDisplay();
     if (typeof window === 'undefined') return;
     const displayUrl = `${window.location.origin}/modules/sales/display`;
     const width = 1280;
@@ -675,7 +901,9 @@ export default function NewSalePage() {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  }) : '';  return (
+  }) : '';
+
+  return (
     <div className="flex w-full h-full min-w-0 flex-col bg-background font-sans text-foreground selection:bg-accent/20 selection:text-accent-foreground overflow-hidden border border-border rounded-xl shadow-2xl">
       {/* 1. HEADER MULTILÍNEA */}
       <header className="bg-card border-b border-border shadow-sm flex flex-col shrink-0 overflow-hidden">
@@ -697,23 +925,23 @@ export default function NewSalePage() {
 
 
         {/* LÍNEA 2: METADATOS Y CONTROLES DE PANTALLA */}
-        <div className="px-5 py-2 flex items-center justify-between gap-4 text-[10px] font-bold uppercase whitespace-nowrap bg-card">
+        <div className="px-5 py-2.5 flex items-center justify-between gap-4 text-[15px] font-bold uppercase whitespace-nowrap bg-card">
           <div className="flex items-center gap-4">
             {/* COLETA */}
-            <div className="flex items-center gap-1.5 bg-muted text-foreground/60 px-2 py-1 rounded-md border border-border/50">
-              <span className="opacity-40">#</span>
-              <span className="font-black tabular-nums">{String(code).padStart(4, '0')}</span>
+            <div className="flex items-center gap-2 bg-muted text-foreground/60 px-3 py-1.5 rounded-md border border-border/50 text-lg leading-none">
+              <span className="opacity-40 text-base font-black">#</span>
+              <span className="font-black tabular-nums tracking-tight">{String(code).padStart(4, '0')}</span>
             </div>
             
-            <div className="h-4 w-px bg-border/60" />
+            <div className="h-5 w-px bg-border/60" />
             
             {/* TIPO DOCUMENTO */}
             <div className="flex items-center gap-2 group">
-              <span className="text-foreground/30 font-black">DOCUMENTO:</span>
+              <span className="text-foreground/30 font-black text-[15px]">DOCUMENTO:</span>
               <select 
                 value={documentType} 
                 onChange={(e) => setDocumentType(e.target.value)} 
-                className="bg-background border border-border rounded-md px-2 py-1 text-[10px] font-black focus:border-accent outline-none appearance-none cursor-pointer hover:border-accent/40 transition-colors"
+                className="bg-background border border-border rounded-md px-2.5 py-1.5 text-[15px] font-black focus:border-accent outline-none appearance-none cursor-pointer hover:border-accent/40 transition-colors min-h-[2.125rem]"
               >
                 <option value="03">BOLETA ELECTRÓNICA</option>
                 <option value="01">FACTURA ELECTRÓNICA</option>
@@ -721,34 +949,61 @@ export default function NewSalePage() {
               </select>
             </div>
 
-            <div className="h-4 w-px bg-border/60" />
+            <div className="h-5 w-px bg-border/60" />
 
             {/* SERIE Y CORRELATIVO */}
             <div className="flex items-center gap-2">
-              <span className="text-foreground/30 font-black">NÚMERO:</span>
+              <span className="text-foreground/30 font-black text-[15px]">SERIE:</span>
               <div className="flex items-center gap-1">
-                <input 
-                  value={serial} 
-                  onChange={(e) => setSerial(e.target.value.toUpperCase())} 
-                  className="w-12 bg-background border border-border rounded-md px-2 py-1 text-center font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all"
-                  maxLength={4}
-                />
-                <span className="opacity-20">-</span>
-                <input 
-                  type="number"
-                  value={correlative} 
-                  onChange={(e) => setCorrelative(parseInt(e.target.value) || 0)} 
-                  className="w-16 bg-background border border-border rounded-md px-2 py-1 text-center font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all"
-                />
+                {userSubsidiaryId != null && seriesOptions.length > 0 ? (
+                  <select
+                    key={`ser-${userSubsidiaryId}-${documentType}`}
+                    value={serial}
+                    onChange={(e) => setSerial(e.target.value.toUpperCase())}
+                    className="min-w-[4.5rem] max-w-[8rem] bg-background border border-border rounded-md px-2.5 py-1.5 text-center text-[15px] font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all cursor-pointer min-h-[2.125rem]"
+                    title="Serie asignada en Config (por sucursal y tipo de documento)"
+                  >
+                    {seriesOptions.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={serial}
+                    onChange={(e) => setSerial(e.target.value.toUpperCase())}
+                    placeholder={userSubLoading ? '…' : 'SERIE'}
+                    disabled={userSubLoading}
+                    className="w-16 sm:w-[4.75rem] bg-background border border-border rounded-md px-2.5 py-1.5 text-center text-[15px] font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all min-h-[2.125rem]"
+                    maxLength={6}
+                  />
+                )}
+                <span className="opacity-20 text-[15px]">-</span>
+                {userSubsidiaryId != null && serial.trim() && seriesOptions.includes(serial.trim()) ? (
+                  <span
+                    className="min-w-[5.75rem] rounded-md border border-border bg-background px-2.5 py-1.5 text-center font-mono text-[15px] font-black tabular-nums tracking-tight text-indigo-600 leading-none"
+                    title="Correlativo (se guarda como número entero)"
+                  >
+                    {String(correlative).padStart(6, '0')}
+                  </span>
+                ) : (
+                  <input
+                    type="number"
+                    value={correlative}
+                    onChange={(e) => setCorrelative(parseInt(e.target.value, 10) || 0)}
+                    className="w-[5.5rem] bg-background border border-border rounded-md px-2.5 py-1.5 text-center text-[15px] font-black text-indigo-600 focus:border-indigo-400 outline-none transition-all min-h-[2.125rem]"
+                  />
+                )}
               </div>
             </div>
 
-            <div className="h-4 w-px bg-border/60" />
+            <div className="h-5 w-px bg-border/60" />
 
             {/* TIPO OPERACIÓN */}
             <div className="hidden xl:flex items-center gap-2">
-              <span className="text-foreground/30 font-black">OPERACIÓN:</span>
-              <span className="font-black text-foreground/70">
+              <span className="text-foreground/30 font-black text-[15px]">OPERACIÓN:</span>
+              <span className="font-black text-foreground/70 text-[15px] max-w-[14rem] truncate">
                 {OPERATION_TYPE_OPTIONS.find(o => o.value === operationType)?.label || operationType}
               </span>
             </div>
@@ -819,7 +1074,7 @@ export default function NewSalePage() {
                   <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-24">SKU</th>
                   <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border">Descripción</th>
                   <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-28 text-center">Cant.</th>
-                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-36 text-right">P.U. (INC IGV)</th>
+                  <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-44 min-w-[11rem] text-right">P.U. (INC IGV)</th>
                   <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-36 text-right">Total</th>
                   <th className="px-5 py-3.5 text-[10px] font-black uppercase tracking-wider text-foreground/40 border-b border-border w-28 text-center">Acciones</th>
                 </tr>
@@ -828,17 +1083,17 @@ export default function NewSalePage() {
                 {cart.length > 0 ? (
                   cart.map((item, index) => (
                     <tr key={`${item.id}-${item.tariffId}`} className="group hover:bg-accent/5 transition-colors">
-                      <td className="px-5 py-3 font-mono text-[11px]">
+                      <td className="px-5 py-1.5 font-mono text-[11px]">
                         <span className="bg-muted px-2 py-1 rounded text-foreground/60 border border-border/40 font-black">
                           {item.code}
                         </span>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-1.5">
                         <div className="text-[13px] font-black tracking-tight leading-none" title={item.name}>
                           {item.name}
                         </div>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-1.5">
                         <div className="flex items-center justify-center bg-background border border-border rounded-xl p-0.5 w-full max-w-[100px] mx-auto group-hover:border-accent/40 transition-colors">
                           <button
                             type="button"
@@ -859,37 +1114,69 @@ export default function NewSalePage() {
                           > + </button>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-1.5 text-right w-44 min-w-[11rem]">
                         <div className="flex items-center justify-end gap-1.5 font-bold text-[13px]">
-                          <span className="opacity-30">S/</span>
+                          <span className="opacity-30 shrink-0">S/</span>
                           <input
-                            type="number"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(e) => { const nc = [...cart]; nc[index].price = parseFloat(e.target.value) || 0; setCart(nc); }}
-                            className="w-24 bg-background/50 border border-border rounded-lg px-2 py-1.5 text-right font-black text-[13px] focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            value={
+                              puEditingKey === `${item.id}-${item.tariffId}`
+                                ? puDraft
+                                : Number(item.price ?? 0).toFixed(4)
+                            }
+                            onFocus={() => {
+                              const k = `${item.id}-${item.tariffId}`;
+                              setPuEditingKey(k);
+                              setPuDraft(String(item.price ?? 0));
+                            }}
+                            onBlur={() => {
+                              const rowKey = `${item.id}-${item.tariffId}`;
+                              if (puEditingKey !== rowKey) return;
+                              const trimmed = puDraft.trim().replace(',', '.');
+                              const raw = parseFloat(trimmed);
+                              setCart((prev) => {
+                                const nc = [...prev];
+                                const row = nc[index];
+                                if (!row || `${row.id}-${row.tariffId}` !== rowKey) return prev;
+                                if (Number.isFinite(raw)) {
+                                  row.price = Math.round(raw * 10000) / 10000;
+                                }
+                                return nc;
+                              });
+                              setPuEditingKey(null);
+                            }}
+                            onChange={(e) => {
+                              const k = `${item.id}-${item.tariffId}`;
+                              if (puEditingKey === k) setPuDraft(e.target.value);
+                            }}
+                            className="min-w-[8.75rem] w-32 max-w-[10rem] bg-background/50 border border-border rounded-lg px-2.5 py-1.5 text-right font-mono font-black text-[13px] tabular-nums tracking-tight focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all"
                           />
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-1.5 text-right">
                         <div className="text-[14px] font-black tabular-nums text-indigo-600 dark:text-indigo-400">
                            S/ {(item.price * item.quantity).toFixed(2)}
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-5 py-1.5 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => sendProductPayloadToDisplaySocket(item)}
                             title="Ver en segunda pantalla"
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 ${displayedProductId === item.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-muted text-foreground/30 hover:bg-indigo-600 hover:text-white'}`}
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 ${displayedProductId === item.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-muted text-foreground/30 hover:bg-indigo-600 hover:text-white'}`}
                           >
                             <Monitor className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
-                            onClick={() => setCart(cart.filter((_, i) => i !== index))}
-                            className="w-9 h-9 rounded-xl flex items-center justify-center bg-muted text-foreground/30 hover:bg-red-500 hover:text-white transition-all active:scale-90"
+                            onClick={() => {
+                              setCart(cart.filter((_, i) => i !== index));
+                              clearDisplay();
+                            }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center bg-muted text-foreground/30 hover:bg-red-500 hover:text-white transition-all active:scale-90"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -997,26 +1284,54 @@ export default function NewSalePage() {
       </footer>
 
 
-      {/* Modals - Industrial Re-design */}
+      {/* Modal buscar producto — ferretería */}
       <Modal
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
-        title="Buscar material"
-        width="max-w-4xl"
-        titleClassName="text-sm font-black text-foreground tracking-tight uppercase"
-        bodyClassName="p-3 sm:p-4"
+        title="Buscar producto"
+        width="max-w-3xl"
+        titleClassName="text-base font-black tracking-tight text-white uppercase drop-shadow-sm"
+        headerClassName="border-0 bg-gradient-to-r from-orange-600 via-orange-600 to-amber-700 px-5 py-3.5"
+        bodyClassName="p-0"
       >
-        <div className="flex flex-col gap-3" style={{ colorScheme: formColorScheme }}>
-            <div className="relative group">
-              <Search className="w-4 h-4 text-accent absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 opacity-80" />
-              <input
+        <div className="flex flex-col" style={{ colorScheme: formColorScheme }}>
+          <div className="border-b border-border/70 bg-gradient-to-b from-muted/50 to-background px-4 py-3 sm:px-5 sm:py-4 space-y-3">
+            <p className="text-[11px] sm:text-xs font-medium text-foreground/55 leading-relaxed">
+              <span className="font-black text-orange-700 dark:text-orange-400">Bradley</span> — busque
+              por código o nombre. Use{' '}
+              <kbd className="rounded border border-border bg-card px-1 py-0.5 font-mono text-[10px] font-bold">
+                ↑↓
+              </kbd>{' '}
+              para resaltar,{' '}
+              <kbd className="rounded border border-border bg-card px-1 py-0.5 font-mono text-[10px] font-bold">
+                Tab
+              </kbd>{' '}
+              para la cantidad y{' '}
+              <kbd className="rounded border border-border bg-card px-1 py-0.5 font-mono text-[10px] font-bold">
+                Enter
+              </kbd>{' '}
+              para agregar a la venta.
+            </p>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="relative flex-1 min-w-0 group">
+                <Search className="w-4 h-4 text-orange-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 opacity-90" />
+                <input
                   ref={productSearchInputRef}
                   type="text"
-                  placeholder="Código o nombre…"
-                  className="w-full pl-9 pr-3 py-2 bg-background text-foreground border border-border rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none text-sm font-semibold shadow-sm placeholder:text-foreground/40"
+                  placeholder="Código, nombre o referencia…"
+                  className="w-full pl-10 pr-3 py-2.5 bg-background text-foreground border border-border rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none text-sm font-semibold shadow-sm placeholder:text-foreground/40 transition-shadow"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
+                    if (e.key === 'Tab' && !e.shiftKey) {
+                      if (!productsLoading && filteredProducts.length > 0) {
+                        e.preventDefault();
+                        productModalQtyRef.current?.focus();
+                        productModalQtyRef.current?.select();
+                      }
+                      return;
+                    }
                     if (productsLoading || filteredProducts.length === 0) return;
                     if (e.key === 'ArrowDown') {
                       e.preventDefault();
@@ -1028,65 +1343,148 @@ export default function NewSalePage() {
                       setProductHighlightIndex((i) => Math.max(i - 1, 0));
                     } else if (e.key === 'Enter') {
                       e.preventDefault();
-                      const p = filteredProducts[productHighlightIndex];
-                      if (p) addToCart(p);
+                      confirmAddHighlightedProduct();
                     }
                   }}
-              />
-            </div>
+                />
+              </div>
 
-            <div className="grid grid-cols-1 gap-1.5 max-h-[min(52vh,28rem)] overflow-y-auto pr-1 custom-scrollbar">
-                {productsLoading ? (
-                    <div className="flex flex-col items-center justify-center py-10 gap-2">
-                        <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
-                        <div className="text-foreground/50 font-bold uppercase text-[10px]">Cargando…</div>
-                    </div>
-                ) : filteredProducts?.length > 0 ? (
-                    filteredProducts.map((p: any, idx: number) => (
-                        <button
-                            key={p.id}
-                            type="button"
-                            data-product-highlight={idx}
-                            onClick={() => addToCart(p)}
-                            className={`flex items-center gap-2 sm:gap-3 p-2 rounded-lg border transition-all text-left active:scale-[0.99] ${
-                              idx === productHighlightIndex
-                                ? 'border-accent bg-orange-50 dark:bg-orange-950/40 ring-1 ring-accent/50'
-                                : 'border-border hover:border-accent/60 bg-card'
-                            }`}
+              <div className="flex items-end gap-2 shrink-0 sm:pb-px">
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="product-modal-qty"
+                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-foreground/45"
+                  >
+                    <Hash className="w-3 h-3 text-orange-600/80" />
+                    Cantidad
+                  </label>
+                  <input
+                    id="product-modal-qty"
+                    ref={productModalQtyRef}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="1"
+                    className="w-[5.5rem] rounded-xl border border-border bg-background py-2.5 text-center text-sm font-black text-foreground tabular-nums shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-shadow placeholder:text-foreground/25"
+                    value={productModalQtyInput}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      setProductModalQtyInput(digits);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        confirmAddHighlightedProduct();
+                        return;
+                      }
+                      if (e.key === 'Tab' && e.shiftKey) {
+                        e.preventDefault();
+                        productSearchInputRef.current?.focus();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-3 py-3 sm:px-4 sm:py-4">
+            <div className="grid grid-cols-1 gap-2 max-h-[min(52vh,26rem)] overflow-y-auto pr-1 custom-scrollbar">
+              {productsLoading ? (
+                <div className="flex flex-col items-center justify-center py-14 gap-3 rounded-2xl border border-dashed border-border/80 bg-muted/20">
+                  <div className="w-10 h-10 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wide">
+                    Cargando catálogo…
+                  </span>
+                </div>
+              ) : filteredProducts?.length > 0 ? (
+                filteredProducts.map((p: any, idx: number) => {
+                  const stock = totalProductStoreStock(p);
+                  const isOutOfStock = stock <= 0;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      tabIndex={-1}
+                      disabled={isOutOfStock}
+                      data-product-highlight={idx}
+                      onClick={() => !isOutOfStock && addToCart(p)}
+                      className={`flex w-full items-stretch gap-3 rounded-2xl border p-3 text-left shadow-sm transition-all active:scale-[0.995] ${
+                        isOutOfStock
+                          ? 'border-red-200/80 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/20 opacity-65 cursor-not-allowed'
+                          : idx === productHighlightIndex
+                            ? 'border-orange-400 bg-orange-50/90 ring-2 ring-orange-500/35 dark:bg-orange-950/50 dark:border-orange-600'
+                            : 'border-border/80 bg-card hover:border-orange-300/70 hover:bg-orange-50/30 dark:hover:bg-orange-950/20'
+                      }`}
+                    >
+                      <div className="w-14 h-14 shrink-0 rounded-xl overflow-hidden flex items-center justify-center border border-border/80 bg-background">
+                        {p.imageUrl ? (
+                          <img
+                            src={`${getApiBaseUrl()}${p.imageUrl}`}
+                            alt=""
+                            className="h-full w-full object-contain p-1"
+                          />
+                        ) : (
+                          <PackageSearch className="w-6 h-6 text-foreground/30" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
+                        <span
+                          className={`text-sm font-bold leading-snug line-clamp-2 ${
+                            isOutOfStock
+                              ? 'text-red-700 dark:text-red-400'
+                              : 'text-foreground'
+                          }`}
                         >
-                            <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-md overflow-hidden flex items-center justify-center p-1 border border-border bg-background">
-                               {p.imageUrl ? (
-                                   <img src={`${getApiBaseUrl()}${p.imageUrl}`} alt="" className="w-full h-full object-contain" />
-                               ) : (
-                                   <PackageSearch className="w-5 h-5 text-foreground/35" />
-                               )}
-                            </div>
+                          {p.name}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-slate-800 px-2 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-slate-700">
+                            {p.code || '—'}
+                          </span>
+                          <span
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-black ${
+                              isOutOfStock
+                                ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+                                : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/80 dark:text-emerald-300'
+                            }`}
+                          >
+                            Stock {stock}
+                          </span>
+                        </div>
+                      </div>
 
-                            <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                <div className="text-sm font-bold text-foreground leading-snug line-clamp-2">{p.name}</div>
-                                <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                  <span className="bg-slate-800 dark:bg-slate-950 text-white text-[9px] px-1.5 py-px rounded font-mono">{p.code || '—'}</span>
-                                  <span className="text-[9px] text-foreground/45 font-semibold">
-                                    Stk {p.productStores?.[0]?.stock ?? 0}
-                                  </span>
-                                </div>
-                            </div>
-
-                            <div className="text-right shrink-0 pr-1">
-                                <div className="text-[8px] text-foreground/45 font-bold uppercase">IGV</div>
-                                <div className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 font-mono">
-                                  {p.tariffs?.[0]?.priceWithIgv?.toFixed(2) || '0.00'}
-                                </div>
-                            </div>
-                        </button>
-                    ))
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-12 opacity-40 gap-2 text-foreground">
-                        <AlertCircle className="w-8 h-8" />
-                        <div className="text-xs font-black uppercase tracking-wide">Sin resultados</div>
-                    </div>
-                )}
+                      <div className="flex shrink-0 flex-col items-end justify-center border-l border-border/50 pl-3 text-right">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-foreground/40">
+                          P. unit. IGV
+                        </span>
+                        <span
+                          className={`font-mono text-lg font-black tabular-nums ${
+                            isOutOfStock
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-indigo-600 dark:text-indigo-400'
+                          }`}
+                        >
+                          S/ {(p.tariffs?.find((t: any) => t.typePrice === 3 || t.typePrice === '3') || p.tariffs?.[0])?.priceWithIgv?.toFixed(2) ?? '0.00'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border py-14 text-foreground/45">
+                  <Construction className="h-10 w-10 opacity-50" />
+                  <span className="text-sm font-black uppercase tracking-wide">
+                    Sin coincidencias
+                  </span>
+                  <span className="max-w-xs text-center text-xs font-medium text-foreground/40">
+                    Pruebe otro término o verifique el código en su catálogo de ferretería.
+                  </span>
+                </div>
+              )}
             </div>
+          </div>
         </div>
       </Modal>
 

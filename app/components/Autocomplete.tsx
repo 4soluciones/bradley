@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Search, ChevronDown, Check, X } from "lucide-react";
 
@@ -27,6 +27,8 @@ interface AutocompleteProps {
   dark?: boolean;
   /** Mínimo de caracteres para mostrar resultados (ej: 3 = buscar al escribir 3+ letras) */
   minSearchLength?: number;
+  /** Abre el panel de opciones hacia arriba (útil cerca del borde inferior de la ventana) */
+  dropdownPlacement?: "bottom" | "top";
 }
 
 export default function Autocomplete({
@@ -43,31 +45,59 @@ export default function Autocomplete({
   isGrid,
   compact,
   dark,
-  minSearchLength = 0
+  minSearchLength = 0,
+  dropdownPlacement = "bottom"
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    left: number;
+    width: number;
+    top?: number;
+    bottom?: number;
+    maxHeight?: number;
+  }>({ left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const updateDropdownPosition = () => {
+  const updateDropdownPosition = useCallback(() => {
     if (inputRef.current && typeof document !== "undefined") {
       const rect = inputRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        left: rect.left,
-        width: rect.width
-      });
+      const gap = 8;
+      if (dropdownPlacement === "top") {
+        setDropdownPosition({
+          left: rect.left,
+          width: rect.width,
+          bottom: window.innerHeight - rect.top + gap,
+          maxHeight: Math.min(240, Math.max(80, rect.top - gap - 4))
+        });
+      } else {
+        setDropdownPosition({
+          left: rect.left,
+          width: rect.width,
+          top: rect.bottom + gap
+        });
+      }
     }
-  };
+  }, [dropdownPlacement]);
 
   useEffect(() => {
-    if (isOpen && isGrid) updateDropdownPosition();
-  }, [isOpen, searchTerm, isGrid]);
+    if (isOpen && (isGrid || dropdownPlacement === "top")) updateDropdownPosition();
+  }, [isOpen, searchTerm, isGrid, dropdownPlacement, updateDropdownPosition]);
+
+  useEffect(() => {
+    if (!isOpen || !(isGrid || dropdownPlacement === "top")) return;
+    const onScrollOrResize = () => updateDropdownPosition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [isOpen, isGrid, dropdownPlacement, updateDropdownPosition]);
 
   const selectedOption = useMemo(() => 
     options.find((opt) => String(opt.id) === String(value)),
@@ -218,7 +248,7 @@ export default function Autocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => {
             setIsOpen(true);
-            if (isGrid) setTimeout(() => updateDropdownPosition(), 0);
+            if (isGrid || dropdownPlacement === "top") setTimeout(() => updateDropdownPosition(), 0);
           }}
           autoComplete="off"
           disabled={disabled}
@@ -248,18 +278,36 @@ export default function Autocomplete({
 
         {/* Dropdown Menu - Portal cuando isGrid para evitar que overflow del padre lo recorte */}
         {isOpen && (() => {
+          const usePortal = typeof document !== "undefined" && (isGrid || dropdownPlacement === "top");
+          const fixedStyle: React.CSSProperties | undefined =
+            usePortal && dropdownPosition.width > 0
+              ? dropdownPlacement === "top"
+                ? {
+                    position: "fixed",
+                    left: dropdownPosition.left,
+                    width: isGrid ? Math.max(dropdownPosition.width, 280) : dropdownPosition.width,
+                    ...(isGrid ? { minWidth: 280 } : {}),
+                    zIndex: 9999,
+                    bottom: dropdownPosition.bottom,
+                    top: "auto",
+                    maxHeight: dropdownPosition.maxHeight
+                  }
+                : {
+                    position: "fixed",
+                    left: dropdownPosition.left,
+                    width: Math.max(dropdownPosition.width, 280),
+                    minWidth: 280,
+                    top: dropdownPosition.top,
+                    bottom: "auto",
+                    zIndex: 9999
+                  }
+              : undefined;
+
           const dropdownBody = (
             <div
               ref={dropdownRef}
               className="bg-card border border-border rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200"
-              style={isGrid && typeof document !== "undefined" ? {
-                position: "fixed",
-                top: dropdownPosition.top,
-                left: dropdownPosition.left,
-                width: Math.max(dropdownPosition.width, 280),
-                zIndex: 9999,
-                minWidth: 280
-              } : undefined}
+              style={fixedStyle}
             >
               {minSearchLength > 0 && searchTerm.trim().length < minSearchLength ? (
                 <div className="p-8 text-center">
@@ -299,11 +347,11 @@ export default function Autocomplete({
               )}
             </div>
           );
-          if (isGrid && typeof document !== "undefined") {
+          if (usePortal) {
             if (dropdownPosition.width > 0) {
               return createPortal(dropdownBody, document.body);
             }
-            return null; // Esperar a tener posición antes de mostrar
+            return null;
           }
           return (
             <div className="absolute z-[100] w-full mt-2">

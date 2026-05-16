@@ -34,7 +34,7 @@ export default function ProductList({ products, loading, onEdit, onView }: Produ
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-      <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] min-h-[400px]">
+      <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-180px)] min-h-[400px]">
         <table className="w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
           <thead className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm text-foreground/50 text-[10px] uppercase font-bold tracking-wider">
             <tr>

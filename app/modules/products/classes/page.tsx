@@ -80,7 +80,7 @@ export default function ClassesPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col space-y-4 animate-in fade-in duration-500 text-sm overflow-hidden">
+    <div className="h-[calc(100vh-140px)] flex flex-col space-y-4 animate-in fade-in duration-500 text-sm overflow-hidden">
       {/* Header Compacto */}
       <div className="flex items-center justify-between bg-card border border-border p-4 py-3 rounded-2xl shadow-sm">
         <div className="flex items-center gap-3">

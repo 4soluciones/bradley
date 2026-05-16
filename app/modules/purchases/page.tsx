@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { gql } from "@apollo/client";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { 
@@ -25,6 +25,7 @@ import {
   FileSearch
 } from "lucide-react";
 import Link from 'next/link';
+import { createPortal } from "react-dom";
 import Autocomplete from "@/app/components/Autocomplete";
 
 // --- GraphQL Operations ---
@@ -70,7 +71,6 @@ const PRODUCTS_QUERY = gql`
       code
       tariffs {
         id
-        name
         priceWithoutIgv
         priceWithIgv
       }
@@ -96,7 +96,6 @@ const CREATE_PURCHASE_MUTATION = gql`
     $supplierId: Int!
     $subsidiaryId: Int!
     $warehouseId: Int!
-    $igvType: Float!
     $totalTaxed: Float!
     $totalIgv: Float!
     $totalAmount: Float!
@@ -123,7 +122,6 @@ const CREATE_PURCHASE_MUTATION = gql`
       supplierId: $supplierId
       subsidiaryId: $subsidiaryId
       warehouseId: $warehouseId
-      igvType: $igvType
       totalTaxed: $totalTaxed
       totalIgv: $totalIgv
       totalAmount: $totalAmount
@@ -144,7 +142,6 @@ const CREATE_PURCHASE_MUTATION = gql`
 
 interface ProductTariff {
   id: string;
-  name: string;
   priceWithoutIgv: number;
   priceWithIgv: number;
 }
@@ -265,6 +262,51 @@ export default function PurchasesPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [wayPayOpen, setWayPayOpen] = useState(false);
+  const wayPayTriggerRef = useRef<HTMLDivElement>(null);
+  const wayPayButtonRef = useRef<HTMLButtonElement>(null);
+  const wayPayMenuRef = useRef<HTMLDivElement>(null);
+  const [wayPayMenuStyle, setWayPayMenuStyle] = useState<React.CSSProperties | null>(null);
+
+  useEffect(() => {
+    if (!wayPayOpen) {
+      setWayPayMenuStyle(null);
+      return;
+    }
+    const position = () => {
+      const el = wayPayButtonRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const gap = 6;
+      setWayPayMenuStyle({
+        position: "fixed",
+        left: rect.left,
+        width: rect.width,
+        bottom: window.innerHeight - rect.top + gap,
+        maxHeight: Math.min(208, Math.max(80, rect.top - gap - 4)),
+        zIndex: 9998
+      });
+    };
+    position();
+    window.addEventListener("scroll", position, true);
+    window.addEventListener("resize", position);
+    return () => {
+      window.removeEventListener("scroll", position, true);
+      window.removeEventListener("resize", position);
+    };
+  }, [wayPayOpen]);
+
+  useEffect(() => {
+    if (!wayPayOpen) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as Node;
+      const inTrigger = wayPayTriggerRef.current?.contains(t);
+      const inMenu = wayPayMenuRef.current?.contains(t);
+      if (!inTrigger && !inMenu) setWayPayOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [wayPayOpen]);
 
   const { data: resourcesData } = useQuery<ResourcesData>(PURCHASES_RESOURCES_QUERY);
   const { data: productsData } = useQuery<ProductsData>(PRODUCTS_QUERY);
@@ -447,7 +489,6 @@ export default function PurchasesPage() {
       warehouseId: parseInt(formData.warehouseId),
       wayPay: parseInt(formData.wayPay),
       cashId: parseInt(formData.cashId),
-      igvType: 18.0,
       totalTaxed: totals.totalTaxed,
       totalIgv: totals.totalIgv,
       totalAmount: totals.totalAmount,
@@ -574,7 +615,23 @@ export default function PurchasesPage() {
               />
             </div>
 
-            <div className="col-span-12 sm:col-span-6 space-y-1 min-w-0">
+            <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
+               <Autocomplete
+                  label="Sucursal *"
+                  options={resourcesData?.subsidiaries.map(s => ({ id: s.id, label: s.name })) || []}
+                  value={formData.subsidiaryId}
+                  onChange={(val) => {
+                    setFormData(prev => ({ ...prev, subsidiaryId: String(val), warehouseId: "" }));
+                    setMissingFields(prev => prev.filter(f => f !== 'subsidiaryId'));
+                  }}
+                  placeholder="Sede..."
+                  icon={<Construction className="w-3.5 h-3.5 text-foreground/55" />}
+                  error={missingFields.includes('subsidiaryId')}
+                  compact
+               />
+            </div>                       
+
+            <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
               <Autocomplete
                 label="Almacén de Destino *"
                 options={filteredWarehouses.map(w => ({ id: w.id, label: w.name }))}
@@ -591,24 +648,10 @@ export default function PurchasesPage() {
               />
             </div>
 
-            <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
-               <Autocomplete
-                  label="Sucursal *"
-                  options={resourcesData?.subsidiaries.map(s => ({ id: s.id, label: s.name })) || []}
-                  value={formData.subsidiaryId}
-                  onChange={(val) => {
-                    setFormData(prev => ({ ...prev, subsidiaryId: String(val), warehouseId: "" }));
-                    setMissingFields(prev => prev.filter(f => f !== 'subsidiaryId'));
-                  }}
-                  placeholder="Sede..."
-                  icon={<Construction className="w-3.5 h-3.5 text-foreground/55" />}
-                  error={missingFields.includes('subsidiaryId')}
-                  compact
-               />
-            </div>
-
-            <div className="col-span-12 sm:col-span-3 space-y-1 min-w-0">
-              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1">Responsable</label>
+            <div className="col-span-12 sm:col-span-3 min-w-0 flex flex-col gap-1.5">
+              <label className="flex items-center min-h-[14px] text-[9px] font-black uppercase tracking-widest ml-1 text-foreground/50 leading-none">
+                Responsable
+              </label>
               <div className="relative">
                 <select 
                   name="userId" 
@@ -617,7 +660,7 @@ export default function PurchasesPage() {
                     handleHeaderChange(e);
                     setMissingFields(prev => prev.filter(f => f !== 'userId'));
                   }} 
-                  className={`w-full h-9 pl-8 pr-3 bg-background border rounded-lg text-xs font-black text-foreground appearance-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 transition-all outline-none ${missingFields.includes('userId') ? 'border-red-500 ring-2 ring-red-500/20' : 'border-border'}`}
+                  className={`m-0 w-full h-9 pl-8 pr-3 bg-background border rounded-lg text-xs font-black text-foreground appearance-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 transition-all outline-none ${missingFields.includes('userId') ? 'border-red-500 ring-2 ring-red-500/20' : 'border-border'}`}
                 >
                   <option value="">Seleccione...</option>
                   {resourcesData?.users.map(u => <option key={u.id} value={u.id}>{u.username.toUpperCase()}</option>)}
@@ -626,6 +669,17 @@ export default function PurchasesPage() {
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40 pointer-events-none" />
               </div>
             </div>
+
+            <div className="col-span-12 sm:col-span-3 min-w-0 flex flex-col gap-1.5">
+              <label className="block text-[9px] font-black uppercase tracking-widest ml-1 text-foreground/50 leading-none flex items-center gap-1 min-h-[14px]">
+                <DollarSign className="w-3 h-3 shrink-0" aria-hidden />
+                Moneda
+              </label>
+              <div className="flex bg-foreground/[0.06] dark:bg-foreground/[0.08] rounded-lg p-0.5 border border-border h-9 items-stretch">
+                <button type="button" onClick={() => setFormData(p => ({...p, currencyType: 'PEN'}))} className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all leading-none ${formData.currencyType === 'PEN' ? 'bg-card shadow-sm text-orange-600 ring-1 ring-border' : 'text-foreground/45 hover:text-foreground/70'}`}>SOLES</button>
+                <button type="button" onClick={() => setFormData(p => ({...p, currencyType: 'USD'}))} className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all leading-none ${formData.currencyType === 'USD' ? 'bg-card shadow-sm text-orange-600 ring-1 ring-border' : 'text-foreground/45 hover:text-foreground/70'}`}>USD</button>
+              </div>
+            </div> 
           </div>
 
           {/* Section 2: Dates & Params */}
@@ -634,29 +688,46 @@ export default function PurchasesPage() {
               II. CRONOLOGÍA INDUSTRIAL
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1 flex items-center gap-1"><Calendar className="w-3 h-3"/> Emisión</label>
-              <input type="date" name="emitDate" value={formData.emitDate} onChange={handleHeaderChange} className="w-full h-8 px-2 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" />
+            <div className="min-w-0 flex flex-col gap-1.5">
+              <label className="flex items-center gap-1 min-h-[14px] text-[9px] font-black uppercase tracking-widest text-foreground/50 leading-none ml-1">
+                <Calendar className="w-3 h-3 shrink-0" aria-hidden />
+                Emisión
+              </label>
+              <input
+                type="date"
+                name="emitDate"
+                value={formData.emitDate}
+                onChange={handleHeaderChange}
+                className="m-0 w-full min-w-0 h-9 px-3 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none"
+              />
             </div>
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1 flex items-center gap-1"><Clock className="w-3 h-3"/> Vencimiento</label>
-              <input type="date" name="dueDate" value={formData.dueDate} onChange={handleHeaderChange} className="w-full h-8 px-2 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" />
+            <div className="min-w-0 flex flex-col gap-1.5">
+              <label className="flex items-center gap-1 min-h-[14px] text-[9px] font-black uppercase tracking-widest text-foreground/50 leading-none ml-1">
+                <Clock className="w-3 h-3 shrink-0" aria-hidden />
+                Vencimiento
+              </label>
+              <input
+                type="date"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={handleHeaderChange}
+                className="m-0 w-full min-w-0 h-9 px-3 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none"
+              />
             </div>
-
-            <div className="col-span-2 gap-3 flex items-end">
-               <div className="flex-1 space-y-1">
-                  <label className="text-[9px] font-bold text-foreground/50 uppercase ml-1 flex items-center gap-1"><DollarSign className="w-3 h-3"/> Moneda</label>
-                  <div className="flex bg-foreground/[0.06] dark:bg-foreground/[0.08] rounded-lg p-0.5 border border-border">
-                    <button type="button" onClick={() => setFormData(p => ({...p, currencyType: 'PEN'}))} className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${formData.currencyType === 'PEN' ? 'bg-card shadow-sm text-orange-600 ring-1 ring-border' : 'text-foreground/45 hover:text-foreground/70'}`}>SOLES</button>
-                    <button type="button" onClick={() => setFormData(p => ({...p, currencyType: 'USD'}))} className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${formData.currencyType === 'USD' ? 'bg-card shadow-sm text-orange-600 ring-1 ring-border' : 'text-foreground/45 hover:text-foreground/70'}`}>DÓLARES</button>
-                  </div>
-               </div>
-               <div className="flex-1 space-y-1">
-                  <label className="text-[9px] font-black text-foreground/50 uppercase ml-1">Observación</label>
-                  <input type="text" name="observation" value={formData.observation} onChange={handleHeaderChange} className="w-full h-9 px-3 bg-background border border-border rounded-lg text-[10px] font-bold text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none" placeholder="..." />
-               </div>
+            <div className="col-span-2 min-w-0 flex flex-col gap-1.5">
+              <label className="flex items-center min-h-[14px] text-[9px] font-black uppercase tracking-widest text-foreground/50 leading-none ml-1">
+                Observación
+              </label>
+              <input
+                type="text"
+                name="observation"
+                value={formData.observation}
+                onChange={handleHeaderChange}
+                className="m-0 w-full h-9 px-3 bg-background border border-border rounded-lg text-[11px] font-black text-foreground focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none"
+                placeholder="Notas del documento..."
+              />
             </div>
-          </div>
+          </div>  
         </div>
 
         {/* 3. MAIN TABLE AREA - Full height stretching */}
@@ -762,14 +833,50 @@ export default function PurchasesPage() {
         <div className="bg-card text-foreground rounded-xl p-3 shadow-lg border border-border border-t-4 border-t-orange-600 shrink-0 grid grid-cols-12 gap-4 mx-1">
            
            {/* Payment Method Section */}
-           <div className="col-span-12 lg:col-span-5 flex items-center gap-4 border-r border-border pr-4 relative">
-              <div className="flex-1 space-y-1">
+           <div className="col-span-12 lg:col-span-5 flex items-center gap-4 border-r border-border pr-4 relative overflow-visible">
+              <div className="flex-1 space-y-1 min-w-0" ref={wayPayTriggerRef}>
                  <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest ml-1">Método de Pago</label>
-                 <select name="wayPay" value={formData.wayPay} onChange={handleHeaderChange} className="w-full h-9 bg-background border border-border rounded-lg text-xs font-black text-foreground px-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none appearance-none">
-                    {resourcesData?.wayPays.map(wp => <option key={wp.id} value={wp.id}>{wp.label}</option>)}
-                 </select>
+                 <div className="relative">
+                   <button
+                     ref={wayPayButtonRef}
+                     type="button"
+                     onClick={() => setWayPayOpen((o) => !o)}
+                     className="w-full h-9 bg-background border border-border rounded-lg text-xs font-black text-foreground px-3 pr-8 text-left focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/40 outline-none flex items-center gap-2"
+                   >
+                     <span className="truncate">
+                       {resourcesData?.wayPays.find((wp) => String(wp.id) === String(formData.wayPay))?.label ?? "Seleccione..."}
+                     </span>
+                   </button>
+                   <ChevronDown className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40 pointer-events-none transition-transform ${wayPayOpen ? "-rotate-180" : ""}`} />
+                   {wayPayOpen && wayPayMenuStyle && typeof document !== "undefined" && createPortal(
+                     <div
+                       ref={wayPayMenuRef}
+                       style={wayPayMenuStyle}
+                       className="overflow-y-auto custom-scrollbar rounded-lg border border-border bg-card shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+                     >
+                       {resourcesData?.wayPays.map((wp) => (
+                         <button
+                           key={wp.id}
+                           type="button"
+                           onClick={() => {
+                             setFormData((prev) => ({ ...prev, wayPay: String(wp.id) }));
+                             setWayPayOpen(false);
+                           }}
+                           className={`w-full px-3 py-2 text-left text-[11px] font-black uppercase tracking-tight transition-colors ${
+                             String(formData.wayPay) === String(wp.id)
+                               ? "bg-orange-600 text-white"
+                               : "text-foreground/80 hover:bg-foreground/5 hover:text-foreground"
+                           }`}
+                         >
+                           {wp.label}
+                         </button>
+                       ))}
+                     </div>,
+                     document.body
+                   )}
+                 </div>
               </div>
-              <div className="flex-[2] space-y-1">
+              <div className="flex-[2] space-y-1 min-w-0">
                  <Autocomplete
                    label="Caja o Banco de Origen"
                    options={filteredCashes.map(c => ({ id: c.id, label: `${c.name} (${c.currencyDescription})` }))}
@@ -783,6 +890,7 @@ export default function PurchasesPage() {
                    disabled={!formData.subsidiaryId}
                    error={missingFields.includes('cashId')}
                    compact
+                   dropdownPlacement="top"
                  />
               </div>
               

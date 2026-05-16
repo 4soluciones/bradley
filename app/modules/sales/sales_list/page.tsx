@@ -120,7 +120,7 @@ export default function SalesHistoryPage() {
             <ShoppingCart className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="text-sm font-black tracking-tight uppercase">
+            <h1 className="text-base font-black tracking-tight uppercase">
               Historial de <span className="text-emerald-600">Ventas</span>
             </h1>
             <p className="text-[8px] font-bold text-foreground/40 uppercase tracking-[0.1em]">
@@ -191,14 +191,14 @@ export default function SalesHistoryPage() {
           <table className="w-full text-left border-collapse table-fixed">
             <thead className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
               <tr>
-                <th className="w-[12%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40">Operación</th>
-                <th className="w-[15%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40">Fecha / Hora</th>
-                <th className="w-[20%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40">Cliente</th>
-                <th className="w-[10%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40 text-right">Subtotal</th>
-                <th className="w-[10%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40 text-right">IGV</th>
-                <th className="w-[12%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40 text-right">Total</th>
-                <th className="w-[12%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40 text-center">Status</th>
-                <th className="w-[8%] px-4 py-2 text-[8px] font-black uppercase tracking-widest text-foreground/40 text-center">Gestión</th>
+                <th className="w-[12%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40">Operación</th>
+                <th className="w-[15%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40">Fecha / Hora</th>
+                <th className="w-[20%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40">Cliente</th>
+                <th className="w-[10%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 text-right">Subtotal</th>
+                <th className="w-[10%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 text-right">IGV</th>
+                <th className="w-[12%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 text-right">Total</th>
+                <th className="w-[12%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 text-center">Status</th>
+                <th className="w-[8%] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 text-center">Gestión</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -220,20 +220,20 @@ export default function SalesHistoryPage() {
                     >
                       <td className="px-4 py-2">
                         <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-foreground group-hover:text-emerald-600 transition-colors uppercase">
+                          <span className="text-xs font-black text-foreground group-hover:text-emerald-600 transition-colors uppercase">
                             VENTA
                           </span>
-                          <span className="text-[8px] font-bold text-foreground/30 uppercase tracking-tighter">
+                          <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-tighter">
                             {sale.serial || '---'}-{sale.correlative?.toString().padStart(6, '0') || '000000'}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-col">
-                           <span className="text-[9px] font-black text-foreground font-mono">
+                           <span className="text-xs font-black text-foreground font-mono">
                              {sale.operationDate}
                            </span>
-                           <div className="flex items-center gap-1 text-[7px] font-bold text-foreground/30">
+                           <div className="flex items-center gap-1 text-[10px] font-bold text-foreground/30">
                              <Clock className="w-2 h-2" />
                              {sale.emitTime || '--:--'}
                            </div>
@@ -241,26 +241,26 @@ export default function SalesHistoryPage() {
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-foreground uppercase truncate">
+                          <span className="text-xs font-black text-foreground uppercase truncate">
                             {sale.client?.names || 'CLIENTE EVENTUAL'}
                           </span>
-                          <span className="text-[7px] font-bold text-foreground/20 font-mono tracking-widest">
+                          <span className="text-[10px] font-bold text-foreground/20 font-mono tracking-widest">
                             {sale.client?.documentNumber || '---------'}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <span className="text-[9px] font-bold text-foreground/60 font-mono">
+                        <span className="text-xs font-bold text-foreground/60 font-mono">
                           {sale.totalTaxed.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <span className="text-[9px] font-bold text-foreground/60 font-mono">
+                        <span className="text-xs font-bold text-foreground/60 font-mono">
                           {sale.totalIgv.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <span className="text-[10px] font-black text-emerald-600 font-mono">
+                        <span className="text-sm font-black text-emerald-600 font-mono">
                           {sale.totalAmount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                         </span>
                       </td>
@@ -268,7 +268,7 @@ export default function SalesHistoryPage() {
                         <div className="flex justify-center">
                           <div className={`px-2 py-0.5 rounded-full border ${status.bg} ${status.color} ${status.border} flex items-center gap-1`}>
                              <div className={`w-1 h-1 rounded-full ${status.color.replace('text', 'bg')}`}></div>
-                             <span className="text-[7px] font-black tracking-widest uppercase">{status.label}</span>
+                             <span className="text-[9px] font-black tracking-widest uppercase">{status.label}</span>
                           </div>
                         </div>
                       </td>

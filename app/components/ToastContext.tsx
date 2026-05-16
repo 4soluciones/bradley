@@ -13,10 +13,10 @@ export interface ToastMessage {
 }
 
 interface ToastContextType {
-  toast: (type: ToastType, message: string) => void;
-  success: (message: string) => void;
-  warning: (message: string) => void;
-  danger: (message: string) => void;
+  toast: (type: ToastType, message: string, durationMs?: number) => void;
+  success: (message: string, durationMs?: number) => void;
+  warning: (message: string, durationMs?: number) => void;
+  danger: (message: string, durationMs?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -54,30 +54,40 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const toast = useCallback((type: ToastType, message: string) => {
+  const toast = useCallback((type: ToastType, message: string, durationMs = 5000) => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, type, message }]);
     setTimeout(() => {
       removeToast(id);
-    }, 5000); // auto remove after 5s
+    }, durationMs);
   }, [removeToast]);
 
-  const success = useCallback((message: string) => toast('success', message), [toast]);
-  const warning = useCallback((message: string) => toast('warning', message), [toast]);
-  const danger = useCallback((message: string) => toast('danger', message), [toast]);
+  const success = useCallback(
+    (message: string, durationMs?: number) => toast('success', message, durationMs),
+    [toast]
+  );
+  const warning = useCallback(
+    (message: string, durationMs?: number) => toast('warning', message, durationMs),
+    [toast]
+  );
+  const danger = useCallback(
+    (message: string, durationMs?: number) => toast('danger', message, durationMs),
+    [toast]
+  );
 
   return (
     <ToastContext.Provider value={{ toast, success, warning, danger }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2">
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-[9999] flex justify-center px-3 sm:px-4">
+        <div className="pointer-events-auto flex w-full max-w-lg flex-col items-stretch gap-2">
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
               key={t.id}
-              initial={{ opacity: 0, y: 50, scale: 0.3 }}
+              initial={{ opacity: 0, y: -20, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-              className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg sm:w-80 w-auto ${bgMap[t.type]}`}
+              exit={{ opacity: 0, y: -12, scale: 0.96, transition: { duration: 0.2 } }}
+              className={`flex w-full items-start gap-3 rounded-xl border p-4 shadow-xl ${bgMap[t.type]}`}
             >
               <div className="flex-shrink-0 mt-0.5">
                 {iconMap[t.type]}
@@ -94,6 +104,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             </motion.div>
           ))}
         </AnimatePresence>
+        </div>
       </div>
     </ToastContext.Provider>
   );
