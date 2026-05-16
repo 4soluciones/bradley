@@ -310,7 +310,7 @@ export default function ProductForm({ isOpen, onClose, productData, onSuccess, r
               {(['length', 'height', 'width'] as const).map(f => (
                 <div key={f} className="flex items-center gap-2">
                   <label className="font-bold text-foreground/40 text-[10px] uppercase">{f}:</label>
-                  <input type="number" name={f} value={(formData as Record<string, string>)[f]} onChange={handleChange} className="w-16 px-2 py-1 bg-card border border-border rounded text-right font-bold" />
+                  <input type="number" name={f} value={formData[f]} onChange={handleChange} className="w-16 px-2 py-1 bg-card border border-border rounded text-right font-bold" />
                 </div>
               ))}
            </div>
